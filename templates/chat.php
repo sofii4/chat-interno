@@ -44,12 +44,7 @@
 
     <body class="bg-gray-950 text-white h-screen flex overflow-hidden">
 
-        <!-- ═══════════════════════════════════════════
-     SIDEBAR ESQUERDA
-════════════════════════════════════════════ -->
         <aside class="w-72 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">
-
-            <!-- Header da sidebar -->
             <div class="p-4 border-b border-gray-800 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-sm font-bold">
@@ -74,7 +69,6 @@
                 </a>
             </div>
 
-            <!-- Botão Emergência TI -->
             <div class="p-3 border-b border-gray-800">
                 <button onclick="abrirEmergencia()"
                     class="w-full bg-red-600 hover:bg-red-500 text-white text-sm font-semibold rounded-xl py-2.5 px-4 flex items-center justify-center gap-2 transition-colors">
@@ -86,7 +80,6 @@
                 </button>
             </div>
 
-            <!-- Busca -->
             <div class="p-3">
                 <div class="relative">
                     <svg class="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none"
@@ -99,145 +92,42 @@
                 </div>
             </div>
 
-            <!-- Lista de conversas / usuários -->
             <nav class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
-
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 pt-3 pb-2">Grupos</p>
-
-                <button onclick="selecionarConversa(1, 'Geral')"
-                    class="conversa-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left group active">
-                    <div class="w-9 h-9 bg-indigo-700 rounded-xl flex items-center justify-center shrink-0 text-sm">#
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-white truncate">Geral</p>
-                        <p class="text-xs text-gray-400 truncate">Bem-vindos ao chat!</p>
-                    </div>
-                    <span
-                        class="bg-indigo-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center shrink-0">3</span>
-                </button>
-
-                <button onclick="selecionarConversa(2, 'TI')"
-                    class="conversa-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left">
-                    <div class="w-9 h-9 bg-emerald-700 rounded-xl flex items-center justify-center shrink-0 text-sm">#
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-white truncate">TI</p>
-                        <p class="text-xs text-gray-400 truncate">Canal da equipe de TI</p>
-                    </div>
-                </button>
-
+                <div id="lista-conversas" class="space-y-0.5"></div>
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 pt-4 pb-2">Usuários Online
                 </p>
-
-                <button onclick="selecionarConversa(3, 'Sofia')"
-                    class="conversa-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left">
-                    <div class="relative shrink-0">
-                        <div class="w-9 h-9 bg-pink-700 rounded-xl flex items-center justify-center text-sm font-bold">S
-                        </div>
-                        <span
-                            class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-2 border-gray-900 rounded-full"></span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-white truncate">Sofia</p>
-                        <p class="text-xs text-gray-400 truncate">Online</p>
-                    </div>
-                </button>
-
+                <div id="lista-usuarios" class="space-y-0.5"></div>
             </nav>
         </aside>
 
-        <!-- ═══════════════════════════════════════════
-     ÁREA PRINCIPAL DO CHAT
-════════════════════════════════════════════ -->
         <main class="flex-1 flex flex-col min-w-0">
-
-            <!-- Header do chat -->
             <header class="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-6 shrink-0">
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 bg-indigo-700 rounded-lg flex items-center justify-center text-sm">#</div>
                     <div>
-                        <p id="chat-nome" class="font-semibold text-white text-sm">Geral</p>
-                        <p class="text-xs text-gray-400">3 membros online</p>
+                        <p id="chat-nome" class="font-semibold text-white text-sm">Selecione uma conversa</p>
+                        <p class="text-xs text-gray-400">Chat Interno</p>
                     </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button class="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </button>
-                    <button class="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </button>
                 </div>
             </header>
 
-            <!-- Mensagens -->
             <div id="messages" class="flex-1 overflow-y-auto p-6 space-y-4">
-
-                <!-- Mensagem de outro usuário -->
-                <div class="flex items-start gap-3 msg-enter">
-                    <div
-                        class="w-8 h-8 bg-emerald-700 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                        M</div>
-                    <div class="max-w-lg">
-                        <div class="flex items-baseline gap-2 mb-1">
-                            <span class="text-sm font-semibold text-white">Maria</span>
-                            <span class="text-xs text-gray-500">09:42</span>
-                        </div>
-                        <div class="bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm text-gray-200">
-                            Bom dia pessoal! 👋
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Mensagem própria -->
-                <div class="flex items-start gap-3 flex-row-reverse msg-enter">
-                    <div
-                        class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                        <?= strtoupper(substr($userName, 0, 1)) ?>
-                    </div>
-                    <div class="max-w-lg">
-                        <div class="flex items-baseline gap-2 mb-1 flex-row-reverse">
-                            <span class="text-sm font-semibold text-indigo-400">Você</span>
-                            <span class="text-xs text-gray-500">09:43</span>
-                        </div>
-                        <div class="bg-indigo-600 rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm text-white">
-                            Bom dia! Tudo certo por aqui 😄
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Separador de data -->
-                <div class="flex items-center gap-3 py-2">
-                    <div class="flex-1 h-px bg-gray-800"></div>
-                    <span class="text-xs text-gray-500 px-2">Hoje</span>
-                    <div class="flex-1 h-px bg-gray-800"></div>
-                </div>
-
+                <p class="text-center text-gray-600 text-xs py-8">Selecione uma conversa para começar</p>
             </div>
 
-            <!-- Input de mensagem -->
             <div class="p-4 bg-gray-900 border-t border-gray-800 shrink-0">
                 <div
-                    class="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition">
-
-                    <!-- Botão de anexo -->
+                    class="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-indigo-500 transition">
                     <button class="text-gray-400 hover:text-indigo-400 transition shrink-0 mb-0.5">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                         </svg>
                     </button>
-
-                    <textarea id="msg-input" rows="1" placeholder="Mensagem para #Geral..."
+                    <textarea id="msg-input" rows="1" placeholder="Selecione uma conversa..."
                         class="flex-1 bg-transparent text-sm text-white placeholder-gray-500 resize-none focus:outline-none max-h-32"
                         onkeydown="handleEnter(event)" oninput="autoResize(this)"></textarea>
-
                     <button onclick="enviarMensagem()"
                         class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl p-2 transition shrink-0 mb-0.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,13 +140,10 @@
             </div>
         </main>
 
-        <!-- ═══════════════════════════════════════════
-     MODAL EMERGÊNCIA TI
-════════════════════════════════════════════ -->
+        <!-- MODAL EMERGÊNCIA -->
         <div id="modal-emergencia"
             class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-gray-900 border border-red-500/30 rounded-2xl w-full max-w-2xl shadow-2xl">
-
                 <div class="flex items-center justify-between p-6 border-b border-gray-800">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center">
@@ -277,7 +164,6 @@
                         </svg>
                     </button>
                 </div>
-
                 <div class="p-6 space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-2">Título do problema</label>
@@ -288,16 +174,16 @@
                         <label class="block text-sm font-medium text-gray-300 mb-2">Prioridade</label>
                         <div class="flex gap-2">
                             <button
-                                class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 hover:border-green-500 hover:text-green-400 transition"
+                                class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 transition"
                                 data-valor="baixa">Baixa</button>
                             <button
                                 class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-yellow-500 text-yellow-400 transition"
                                 data-valor="media">Média</button>
                             <button
-                                class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 hover:border-orange-500 hover:text-orange-400 transition"
+                                class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 transition"
                                 data-valor="alta">Alta</button>
                             <button
-                                class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 hover:border-red-500 hover:text-red-400 transition"
+                                class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 transition"
                                 data-valor="critica">🔴 Crítica</button>
                         </div>
                     </div>
@@ -308,8 +194,7 @@
                             class="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 transition resize-none"></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-2">Anexar arquivos (fotos,
-                            prints)</label>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Anexar arquivos</label>
                         <label
                             class="flex items-center gap-3 bg-gray-800 border border-dashed border-gray-600 rounded-xl px-4 py-3 cursor-pointer hover:border-gray-500 transition">
                             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,7 +206,6 @@
                         </label>
                     </div>
                 </div>
-
                 <div class="flex gap-3 px-6 pb-6">
                     <button onclick="fecharEmergencia()"
                         class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl py-2.5 text-sm font-medium transition">
@@ -336,24 +220,155 @@
         </div>
 
         <script>
-            const CURRENT_USER = "<?= addslashes($userName) ?>";
-            let conversaAtual = 1;
-            let prioridadeSelecionada = 'media';
+            const CURRENT_USER_ID = <?= (int) $userId ?>;
+            const CURRENT_USER_NAME = "<?= addslashes(htmlspecialchars($userName)) ?>";
+            let conversaAtualId = null;
+            let conversaAtualNome = null;
+            let enviando = false;
 
-            // ── Conversa ──────────────────────────────────
-            function selecionarConversa(id, nome) {
-                conversaAtual = id;
-                document.getElementById('chat-nome').textContent = nome;
-                document.querySelectorAll('.conversa-item').forEach(el => el.classList.remove('bg-gray-800'));
-                event.currentTarget.classList.add('bg-gray-800');
+            document.addEventListener('DOMContentLoaded', () => {
+                carregarConversas();
+                carregarUsuarios();
+                document.querySelectorAll('.prioridade-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        prioridadeSelecionada = btn.dataset.valor;
+                        document.querySelectorAll('.prioridade-btn').forEach(b => {
+                            b.className = 'prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 transition';
+                        });
+                        const cores = {
+                            baixa: 'border-green-500 text-green-400', media: 'border-yellow-500 text-yellow-400',
+                            alta: 'border-orange-500 text-orange-400', critica: 'border-red-500 text-red-400'
+                        };
+                        btn.className = `prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border ${cores[btn.dataset.valor]} transition`;
+                    });
+                });
+                document.getElementById('modal-emergencia').addEventListener('click', function (e) {
+                    if (e.target === this) fecharEmergencia();
+                });
+            });
+
+            async function carregarConversas() {
+                const res = await fetch('/api/conversas');
+                const lista = await res.json();
+                const nav = document.getElementById('lista-conversas');
+                nav.innerHTML = '';
+                lista.forEach(c => {
+                    const btn = document.createElement('button');
+                    btn.className = 'conversa-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left';
+                    btn.dataset.id = c.id;
+                    btn.innerHTML = `
+            <div class="w-9 h-9 bg-indigo-700 rounded-xl flex items-center justify-center shrink-0 text-sm">#</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-white truncate">${c.nome}</p>
+                <p class="text-xs text-gray-400 truncate">${c.ultima_mensagem ?? 'Sem mensagens'}</p>
+            </div>`;
+                    btn.addEventListener('click', () => selecionarConversa(c.id, c.nome, btn));
+                    nav.appendChild(btn);
+                });
+                if (lista.length > 0) {
+                    const primeiro = nav.querySelector('.conversa-item');
+                    selecionarConversa(lista[0].id, lista[0].nome, primeiro);
+                }
             }
 
-            // ── Mensagem ──────────────────────────────────
-            function handleEnter(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    enviarMensagem();
+            async function carregarUsuarios() {
+                const res = await fetch('/api/usuarios/online');
+                const lista = await res.json();
+                const nav = document.getElementById('lista-usuarios');
+                nav.innerHTML = '';
+                if (lista.length === 0) {
+                    nav.innerHTML = '<p class="text-xs text-gray-600 px-3 py-2">Nenhum outro usuário cadastrado</p>';
+                    return;
                 }
+                const cores = ['bg-pink-700', 'bg-emerald-700', 'bg-amber-700', 'bg-purple-700'];
+                lista.forEach(u => {
+                    const cor = cores[u.id % cores.length];
+                    const btn = document.createElement('button');
+                    btn.className = 'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left';
+                    btn.innerHTML = `
+            <div class="w-9 h-9 ${cor} rounded-xl flex items-center justify-center text-sm font-bold shrink-0">
+                ${u.nome.charAt(0).toUpperCase()}
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-white truncate">${u.nome}</p>
+                <p class="text-xs text-gray-400 truncate">${u.setor ?? u.papel}</p>
+            </div>`;
+                    nav.appendChild(btn);
+                });
+            }
+
+            function selecionarConversa(id, nome, el) {
+                conversaAtualId = id;
+                conversaAtualNome = nome;
+                document.querySelectorAll('.conversa-item').forEach(b => b.classList.remove('bg-gray-800'));
+                el.classList.add('bg-gray-800');
+                document.getElementById('chat-nome').textContent = '#' + nome;
+                document.getElementById('msg-input').placeholder = `Mensagem para #${nome}...`;
+                carregarMensagens(id);
+            }
+
+            async function carregarMensagens(conversaId) {
+                const box = document.getElementById('messages');
+                box.innerHTML = '<p class="text-center text-gray-600 text-xs py-4">Carregando...</p>';
+                const res = await fetch(`/api/mensagens?conversa_id=${conversaId}`);
+                const msgs = await res.json();
+                box.innerHTML = '';
+                if (msgs.length === 0) {
+                    box.innerHTML = '<p class="text-center text-gray-600 text-xs py-8">Nenhuma mensagem ainda. Diga olá! 👋</p>';
+                    return;
+                }
+                msgs.forEach(m => renderizarMensagem(m));
+                box.scrollTop = box.scrollHeight;
+            }
+
+            function renderizarMensagem(m) {
+                const box = document.getElementById('messages');
+                const proprio = m.usuario_id === CURRENT_USER_ID;
+                const inicial = m.usuario_nome.charAt(0).toUpperCase();
+                const cores = ['bg-emerald-700', 'bg-pink-700', 'bg-amber-700', 'bg-purple-700'];
+                const cor = proprio ? 'bg-indigo-600' : cores[m.usuario_id % cores.length];
+                const hora = new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const texto = m.conteudo.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                const div = document.createElement('div');
+                div.className = `flex items-start gap-3 msg-enter ${proprio ? 'flex-row-reverse' : ''}`;
+                div.innerHTML = `
+        <div class="w-8 h-8 ${cor} rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">${inicial}</div>
+        <div class="max-w-lg">
+            <div class="flex items-baseline gap-2 mb-1 ${proprio ? 'flex-row-reverse' : ''}">
+                <span class="text-sm font-semibold ${proprio ? 'text-indigo-400' : 'text-white'}">${proprio ? 'Você' : m.usuario_nome}</span>
+                <span class="text-xs text-gray-500">${hora}</span>
+            </div>
+            <div class="${proprio ? 'bg-indigo-600' : 'bg-gray-800'} rounded-2xl ${proprio ? 'rounded-tr-sm' : 'rounded-tl-sm'} px-4 py-2.5 text-sm ${proprio ? 'text-white' : 'text-gray-200'}">
+                ${texto}
+            </div>
+        </div>`;
+                box.appendChild(div);
+            }
+
+            async function enviarMensagem() {
+                if (!conversaAtualId || enviando) return;
+                const input = document.getElementById('msg-input');
+                const texto = input.value.trim();
+                if (!texto) return;
+                enviando = true;
+                input.value = '';
+                input.style.height = 'auto';
+                const res = await fetch('/api/mensagens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `conversa_id=${conversaAtualId}&conteudo=${encodeURIComponent(texto)}`
+                });
+                const nova = await res.json();
+                enviando = false;
+                if (res.ok) {
+                    renderizarMensagem(nova);
+                    document.getElementById('messages').scrollTop = 99999;
+                    carregarConversas();
+                }
+            }
+
+            function handleEnter(e) {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensagem(); }
             }
 
             function autoResize(el) {
@@ -361,84 +376,16 @@
                 el.style.height = Math.min(el.scrollHeight, 128) + 'px';
             }
 
-            function enviarMensagem() {
-                const input = document.getElementById('msg-input');
-                const texto = input.value.trim();
-                if (!texto) return;
+            let prioridadeSelecionada = 'media';
+            function abrirEmergencia() { document.getElementById('modal-emergencia').classList.remove('hidden'); }
+            function fecharEmergencia() { document.getElementById('modal-emergencia').classList.add('hidden'); }
 
-                adicionarMensagem({
-                    conteudo: texto,
-                    proprio: true,
-                    autor: CURRENT_USER,
-                    hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                });
-
-                input.value = '';
-                input.style.height = 'auto';
-                // Aqui futuramente: ws.send(JSON.stringify({ type: 'send_message', content: texto, room_id: conversaAtual }))
-            }
-
-            function adicionarMensagem({ conteudo, proprio, autor, hora }) {
-                const box = document.getElementById('messages');
-                const inicial = autor.charAt(0).toUpperCase();
-                const cores = ['bg-indigo-600', 'bg-emerald-700', 'bg-pink-700', 'bg-amber-700'];
-                const cor = proprio ? 'bg-indigo-600' : cores[autor.length % cores.length];
-
-                const div = document.createElement('div');
-                div.className = 'flex items-start gap-3 msg-enter ' + (proprio ? 'flex-row-reverse' : '');
-                div.innerHTML = `
-        <div class="w-8 h-8 ${cor} rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">${inicial}</div>
-        <div class="max-w-lg">
-            <div class="flex items-baseline gap-2 mb-1 ${proprio ? 'flex-row-reverse' : ''}">
-                <span class="text-sm font-semibold ${proprio ? 'text-indigo-400' : 'text-white'}">${proprio ? 'Você' : autor}</span>
-                <span class="text-xs text-gray-500">${hora}</span>
-            </div>
-            <div class="${proprio ? 'bg-indigo-600' : 'bg-gray-800'} rounded-2xl ${proprio ? 'rounded-tr-sm' : 'rounded-tl-sm'} px-4 py-2.5 text-sm ${proprio ? 'text-white' : 'text-gray-200'}">
-                ${conteudo.replace(/\n/g, '<br>')}
-            </div>
-        </div>`;
-                box.appendChild(div);
-                box.scrollTop = box.scrollHeight;
-            }
-
-            // ── Emergência ────────────────────────────────
-            function abrirEmergencia() {
-                document.getElementById('modal-emergencia').classList.remove('hidden');
-            }
-
-            function fecharEmergencia() {
-                document.getElementById('modal-emergencia').classList.add('hidden');
-            }
-
-            document.querySelectorAll('.prioridade-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    prioridadeSelecionada = btn.dataset.valor;
-                    document.querySelectorAll('.prioridade-btn').forEach(b => {
-                        b.classList.remove('border-yellow-500', 'text-yellow-400', 'border-red-500', 'text-red-400',
-                            'border-orange-500', 'text-orange-400', 'border-green-500', 'text-green-400');
-                        b.classList.add('border-gray-700', 'text-gray-400');
-                    });
-                    const cores = {
-                        baixa: ['border-green-500', 'text-green-400'], media: ['border-yellow-500', 'text-yellow-400'],
-                        alta: ['border-orange-500', 'text-orange-400'], critica: ['border-red-500', 'text-red-400']
-                    };
-                    cores[btn.dataset.valor]?.forEach(c => btn.classList.add(c));
-                    btn.classList.remove('border-gray-700', 'text-gray-400');
-                });
-            });
-
-            function enviarChamado() {
+            async function enviarChamado() {
                 const titulo = document.getElementById('chamado-titulo').value.trim();
                 if (!titulo) { alert('Informe o título do problema.'); return; }
-                // Aqui futuramente: fetch('/api/chamados', { method: 'POST', ... })
                 alert('Chamado aberto! A equipe de TI foi notificada.');
                 fecharEmergencia();
             }
-
-            // Fechar modal clicando fora
-            document.getElementById('modal-emergencia').addEventListener('click', function (e) {
-                if (e.target === this) fecharEmergencia();
-            });
         </script>
 
     </body>

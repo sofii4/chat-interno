@@ -10,7 +10,7 @@ class AuthController
     public function exibirLogin(Request $request, Response $response): Response
     {
         ob_start();
-        include __DIR__ . '/../../templates/login.html';
+        include __DIR__ . '/../../templates/login.php';
         $html = ob_get_clean();
         $response->getBody()->write($html);
         return $response;
