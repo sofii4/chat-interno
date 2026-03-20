@@ -9,13 +9,11 @@ use App\Helpers\Response as Json;
 class ChatController
 {
     // GET /api/conversas
-    // Retorna todas as conversas que o usuário logado participa
     public function listarConversas(Request $request, Response $response): Response
     {
         $userId = $request->getAttribute('user_id');
         $pdo    = getDbConnection();
 
-        // Em conversas privadas o nome é o do outro usuário
         $stmt = $pdo->prepare("
             SELECT
                 c.id,
@@ -43,21 +41,19 @@ class ChatController
             ORDER BY c.tipo ASC, c.criado_em ASC
         ");
         $stmt->execute([$userId, $userId, $userId]);
-        $conversas = $stmt->fetchAll();
 
-        return Json::json($response, $conversas);
+        return Json::json($response, $stmt->fetchAll());
     }
 
     // GET /api/mensagens?conversa_id=1&pagina=1
-    // Retorna o histórico de mensagens de uma conversa (50 por vez)
     public function listarMensagens(Request $request, Response $response): Response
     {
-        $userId      = $request->getAttribute('user_id');
-        $params      = $request->getQueryParams();
-        $conversaId  = (int) ($params['conversa_id'] ?? 0);
-        $pagina      = max(1, (int) ($params['pagina'] ?? 1));
-        $porPagina   = 50;
-        $offset      = ($pagina - 1) * $porPagina;
+        $userId     = $request->getAttribute('user_id');
+        $params     = $request->getQueryParams();
+        $conversaId = (int) ($params['conversa_id'] ?? 0);
+        $pagina     = max(1, (int) ($params['pagina'] ?? 1));
+        $porPagina  = 50;
+        $offset     = ($pagina - 1) * $porPagina;
 
         if (!$conversaId) {
             return Json::erro($response, 'conversa_id é obrigatório');
@@ -65,25 +61,15 @@ class ChatController
 
         $pdo = getDbConnection();
 
-        // Verifica se o usuário participa dessa conversa (segurança!)
-        $check = $pdo->prepare("
-            SELECT 1 FROM participantes
-            WHERE conversa_id = ? AND usuario_id = ?
-        ");
+        $check = $pdo->prepare("SELECT 1 FROM participantes WHERE conversa_id = ? AND usuario_id = ?");
         $check->execute([$conversaId, $userId]);
         if (!$check->fetch()) {
             return Json::erro($response, 'Acesso negado', 403);
         }
 
         $stmt = $pdo->prepare("
-            SELECT
-                m.id,
-                m.conteudo,
-                m.arquivo_path,
-                m.arquivo_nome,
-                m.criado_em,
-                u.id   AS usuario_id,
-                u.nome AS usuario_nome
+            SELECT m.id, m.conteudo, m.arquivo_path, m.arquivo_nome, m.criado_em,
+                   u.id AS usuario_id, u.nome AS usuario_nome
             FROM mensagens m
             INNER JOIN usuarios u ON u.id = m.usuario_id
             WHERE m.conversa_id = ?
@@ -91,14 +77,11 @@ class ChatController
             LIMIT ? OFFSET ?
         ");
         $stmt->execute([$conversaId, $porPagina, $offset]);
-        // Inverte para mostrar as mais antigas primeiro
-        $mensagens = array_reverse($stmt->fetchAll());
 
-        return Json::json($response, $mensagens);
+        return Json::json($response, array_reverse($stmt->fetchAll()));
     }
 
     // POST /api/mensagens
-    // Salva uma nova mensagem no banco
     public function enviarMensagem(Request $request, Response $response): Response
     {
         $userId = $request->getAttribute('user_id');
@@ -107,7 +90,6 @@ class ChatController
         $conversaId = (int) ($data['conversa_id'] ?? 0);
         $conteudo   = trim($data['conteudo'] ?? '');
 
-        // Validações
         if (!$conversaId || !$conteudo) {
             return Json::erro($response, 'conversa_id e conteudo são obrigatórios');
         }
@@ -118,29 +100,19 @@ class ChatController
 
         $pdo = getDbConnection();
 
-        // Segurança: verifica se o usuário é participante
-        $check = $pdo->prepare("
-            SELECT 1 FROM participantes
-            WHERE conversa_id = ? AND usuario_id = ?
-        ");
+        $check = $pdo->prepare("SELECT 1 FROM participantes WHERE conversa_id = ? AND usuario_id = ?");
         $check->execute([$conversaId, $userId]);
         if (!$check->fetch()) {
             return Json::erro($response, 'Acesso negado', 403);
         }
 
-        // Salva a mensagem
-        $stmt = $pdo->prepare("
-            INSERT INTO mensagens (conversa_id, usuario_id, conteudo)
-            VALUES (?, ?, ?)
-        ");
+        $stmt = $pdo->prepare("INSERT INTO mensagens (conversa_id, usuario_id, conteudo) VALUES (?, ?, ?)");
         $stmt->execute([$conversaId, $userId, $conteudo]);
         $msgId = (int) $pdo->lastInsertId();
 
-        // Retorna a mensagem completa (com nome do usuário) para o frontend
         $nova = $pdo->prepare("
-            SELECT
-                m.id, m.conteudo, m.criado_em,
-                u.id AS usuario_id, u.nome AS usuario_nome
+            SELECT m.id, m.conteudo, m.criado_em,
+                   u.id AS usuario_id, u.nome AS usuario_nome
             FROM mensagens m
             INNER JOIN usuarios u ON u.id = m.usuario_id
             WHERE m.id = ?
@@ -151,18 +123,13 @@ class ChatController
     }
 
     // GET /api/usuarios/online
-    // Lista usuários para mostrar na sidebar
     public function listarUsuarios(Request $request, Response $response): Response
     {
         $userId = $request->getAttribute('user_id');
         $pdo    = getDbConnection();
 
         $stmt = $pdo->prepare("
-            SELECT
-                u.id,
-                u.nome,
-                u.papel,
-                s.nome AS setor
+            SELECT u.id, u.nome, u.papel, s.nome AS setor
             FROM usuarios u
             LEFT JOIN setores s ON s.id = u.setor_id
             WHERE u.ativo = 1 AND u.id != ?
@@ -174,36 +141,30 @@ class ChatController
     }
 
     // POST /api/conversas
-    // Cria grupo (admin) ou conversa privada (qualquer usuário)
     public function criarConversa(Request $request, Response $response): Response
     {
         $userId = $request->getAttribute('user_id');
         $papel  = $request->getAttribute('user_papel');
         $data   = (array) $request->getParsedBody();
+        $tipo   = $data['tipo'] ?? 'privada';
 
-        $tipo = $data['tipo'] ?? 'privada';
-
-        // Só admin cria grupos
         if ($tipo === 'grupo' && $papel !== 'admin') {
             return Json::erro($response, 'Apenas administradores podem criar grupos', 403);
         }
 
         $pdo = getDbConnection();
 
-        // Conversa privada: verifica se já existe entre os dois usuários
         if ($tipo === 'privada') {
             $outroId = (int) ($data['usuario_id'] ?? 0);
             if (!$outroId || $outroId === $userId) {
                 return Json::erro($response, 'Informe um usuário válido');
             }
 
-            // Checa se já existe conversa privada entre eles
             $check = $pdo->prepare("
                 SELECT c.id FROM conversas c
                 INNER JOIN participantes p1 ON p1.conversa_id = c.id AND p1.usuario_id = ?
                 INNER JOIN participantes p2 ON p2.conversa_id = c.id AND p2.usuario_id = ?
-                WHERE c.tipo = 'privada'
-                LIMIT 1
+                WHERE c.tipo = 'privada' LIMIT 1
             ");
             $check->execute([$userId, $outroId]);
             $existente = $check->fetch();
@@ -212,26 +173,20 @@ class ChatController
                 return Json::json($response, ['id' => $existente['id'], 'ja_existe' => true]);
             }
 
-            // Cria conversa privada
             $stmt = $pdo->prepare("INSERT INTO conversas (tipo, nome, criado_por) VALUES ('privada', NULL, ?)");
             $stmt->execute([$userId]);
             $conversaId = (int) $pdo->lastInsertId();
 
-            // Adiciona os dois participantes
-            $pdo->prepare("INSERT INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")
-                ->execute([$conversaId, $userId]);
-            $pdo->prepare("INSERT INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")
-                ->execute([$conversaId, $outroId]);
+            $pdo->prepare("INSERT INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")->execute([$conversaId, $userId]);
+            $pdo->prepare("INSERT INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")->execute([$conversaId, $outroId]);
 
-            // Busca o nome do outro usuário para retornar
             $outro = $pdo->prepare("SELECT nome FROM usuarios WHERE id = ?");
             $outro->execute([$outroId]);
-            $nomeOutro = $outro->fetchColumn();
 
             return Json::json($response, [
                 'id'        => $conversaId,
                 'tipo'      => 'privada',
-                'nome'      => $nomeOutro,
+                'nome'      => $outro->fetchColumn(),
                 'ja_existe' => false,
             ], 201);
         }
@@ -246,35 +201,119 @@ class ChatController
         $stmt->execute([$nome, $userId]);
         $conversaId = (int) $pdo->lastInsertId();
 
-        // Admin entra no grupo automaticamente
-        $pdo->prepare("INSERT INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")
-            ->execute([$conversaId, $userId]);
+        $pdo->prepare("INSERT INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")->execute([$conversaId, $userId]);
 
-        // Adiciona participantes iniciais se informados
         $participantes = $data['participantes'] ?? '';
         if ($participantes) {
             $ids = array_filter(array_map('intval', explode(',', $participantes)));
             foreach ($ids as $pid) {
                 if ($pid === $userId) continue;
-                $pdo->prepare("INSERT IGNORE INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")
-                    ->execute([$conversaId, $pid]);
+                $pdo->prepare("INSERT IGNORE INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")->execute([$conversaId, $pid]);
             }
         }
 
-        return Json::json($response, [
-            'id'   => $conversaId,
-            'tipo' => 'grupo',
-            'nome' => $nome,
-        ], 201);
+        return Json::json($response, ['id' => $conversaId, 'tipo' => 'grupo', 'nome' => $nome], 201);
+    }
+
+    // PATCH /api/conversas/{id}
+    public function editarConversa(Request $request, Response $response, array $args): Response
+    {
+        $papel      = $request->getAttribute('user_papel');
+        $conversaId = (int) $args['id'];
+
+        if ($papel !== 'admin') {
+            return Json::erro($response, 'Apenas administradores podem editar grupos', 403);
+        }
+
+        $data = (array) $request->getParsedBody();
+        $nome = trim($data['nome'] ?? '');
+
+        if (!$nome) {
+            return Json::erro($response, 'Nome é obrigatório');
+        }
+
+        $pdo  = getDbConnection();
+        $stmt = $pdo->prepare("UPDATE conversas SET nome = ? WHERE id = ? AND tipo != 'privada'");
+        $stmt->execute([$nome, $conversaId]);
+
+        return Json::json($response, ['ok' => true, 'nome' => $nome]);
+    }
+
+    // DELETE /api/conversas/{id}
+    public function deletarConversa(Request $request, Response $response, array $args): Response
+    {
+        $papel      = $request->getAttribute('user_papel');
+        $conversaId = (int) $args['id'];
+
+        if ($papel !== 'admin') {
+            return Json::erro($response, 'Apenas administradores podem excluir grupos', 403);
+        }
+
+        $pdo   = getDbConnection();
+        $check = $pdo->prepare("SELECT tipo FROM conversas WHERE id = ?");
+        $check->execute([$conversaId]);
+        $conversa = $check->fetch();
+
+        if (!$conversa) {
+            return Json::erro($response, 'Conversa não encontrada', 404);
+        }
+
+        if ($conversa['tipo'] === 'privada') {
+            return Json::erro($response, 'Não é possível excluir conversas privadas');
+        }
+
+        $pdo->prepare("DELETE FROM conversas WHERE id = ?")->execute([$conversaId]);
+
+        return Json::json($response, ['ok' => true]);
+    }
+
+    // POST /api/conversas/{id}/lida
+    public function marcarComoLida(Request $request, Response $response, array $args): Response
+    {
+        $userId     = $request->getAttribute('user_id');
+        $conversaId = (int) $args['id'];
+
+        $pdo  = getDbConnection();
+        $stmt = $pdo->prepare("UPDATE participantes SET ultima_leitura = NOW() WHERE conversa_id = ? AND usuario_id = ?");
+        $stmt->execute([$conversaId, $userId]);
+
+        return Json::json($response, ['ok' => true]);
+    }
+
+    // GET /api/conversas/{id}/participantes
+    public function listarParticipantes(Request $request, Response $response, array $args): Response
+    {
+        $userId     = $request->getAttribute('user_id');
+        $conversaId = (int) $args['id'];
+        $pdo        = getDbConnection();
+
+        // Verifica se tem acesso
+        $check = $pdo->prepare("SELECT 1 FROM participantes WHERE conversa_id = ? AND usuario_id = ?");
+        $check->execute([$conversaId, $userId]);
+        if (!$check->fetch()) {
+            return Json::erro($response, 'Acesso negado', 403);
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT u.id, u.nome, u.papel, s.nome AS setor
+            FROM participantes p
+            INNER JOIN usuarios u ON u.id = p.usuario_id
+            LEFT JOIN setores s ON s.id = u.setor_id
+            WHERE p.conversa_id = ?
+            ORDER BY u.nome ASC
+        ");
+        $stmt->execute([$conversaId]);
+
+        return Json::json($response, $stmt->fetchAll());
     }
 
     // POST /api/conversas/{id}/participantes
     public function adicionarParticipante(Request $request, Response $response, array $args): Response
     {
-        $papel     = $request->getAttribute('user_papel');
+        $papel      = $request->getAttribute('user_papel');
         $conversaId = (int) $args['id'];
-        $data      = (array) $request->getParsedBody();
-        $usuarioId = (int) ($data['usuario_id'] ?? 0);
+        $data       = (array) $request->getParsedBody();
+        $usuarioId  = (int) ($data['usuario_id'] ?? 0);
 
         if ($papel !== 'admin') {
             return Json::erro($response, 'Apenas administradores podem adicionar participantes', 403);
@@ -291,54 +330,26 @@ class ChatController
         return Json::json($response, ['ok' => true]);
     }
 
-
-    // DELETE /api/conversas/{id}
-    public function deletarConversa(Request $request, Response $response, array $args): Response
+    // DELETE /api/conversas/{id}/participantes/{uid}
+    public function removerParticipante(Request $request, Response $response, array $args): Response
     {
-        $papel     = $request->getAttribute('user_papel');
-        $userId    = $request->getAttribute('user_id');
+        $papel      = $request->getAttribute('user_papel');
+        $myId       = $request->getAttribute('user_id');
         $conversaId = (int) $args['id'];
+        $usuarioId  = (int) $args['uid'];
 
         if ($papel !== 'admin') {
-            return Json::erro($response, 'Apenas administradores podem excluir grupos', 403);
+            return Json::erro($response, 'Apenas administradores podem remover participantes', 403);
+        }
+
+        if ($usuarioId === $myId) {
+            return Json::erro($response, 'Você não pode se remover do grupo');
         }
 
         $pdo  = getDbConnection();
-
-        // Verifica se é grupo (não permite deletar privadas)
-        $check = $pdo->prepare("SELECT tipo FROM conversas WHERE id = ?");
-        $check->execute([$conversaId]);
-        $conversa = $check->fetch();
-
-        if (!$conversa) {
-            return Json::erro($response, 'Conversa não encontrada', 404);
-        }
-
-        if ($conversa['tipo'] === 'privada') {
-            return Json::erro($response, 'Não é possível excluir conversas privadas');
-        }
-
-        // Deleta tudo em cascata (participantes e mensagens via FK)
-        $pdo->prepare("DELETE FROM conversas WHERE id = ?")->execute([$conversaId]);
+        $stmt = $pdo->prepare("DELETE FROM participantes WHERE conversa_id = ? AND usuario_id = ?");
+        $stmt->execute([$conversaId, $usuarioId]);
 
         return Json::json($response, ['ok' => true]);
     }
-
-
-    // POST /api/conversas/{id}/lida
-    public function marcarComoLida(Request $request, Response $response, array $args): Response
-    {
-        $userId     = $request->getAttribute('user_id');
-        $conversaId = (int) $args['id'];
-
-        $pdo  = getDbConnection();
-        $stmt = $pdo->prepare("
-            UPDATE participantes SET ultima_leitura = NOW()
-            WHERE conversa_id = ? AND usuario_id = ?
-        ");
-        $stmt->execute([$conversaId, $userId]);
-
-        return Json::json($response, ['ok' => true]);
-    }
-
 }

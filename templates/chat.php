@@ -22,7 +22,6 @@
 <!-- ═══ SIDEBAR ═══ -->
 <aside class="w-72 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">
 
-    <!-- Header da sidebar -->
     <div class="p-4 border-b border-gray-800 flex items-center justify-between">
         <div class="flex items-center gap-3">
             <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-sm font-bold">
@@ -36,7 +35,6 @@
                 </p>
             </div>
         </div>
-        <!-- Botões do header: admin + logout -->
         <div class="flex items-center gap-1">
             <?php if ($userPapel === 'admin'): ?>
             <a href="/admin" title="Painel Admin"
@@ -58,7 +56,6 @@
         </div>
     </div>
 
-    <!-- Botão emergência -->
     <div class="p-3 border-b border-gray-800">
         <button onclick="abrirEmergencia()"
                 class="w-full bg-red-600 hover:bg-red-500 text-white text-sm font-semibold rounded-xl py-2.5 px-4 flex items-center justify-center gap-2 transition-colors">
@@ -70,7 +67,6 @@
         </button>
     </div>
 
-    <!-- Busca + botão nova conversa -->
     <div class="p-3 flex items-center gap-2">
         <div class="relative flex-1">
             <svg class="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,7 +83,6 @@
         </button>
     </div>
 
-    <!-- Lista de conversas e usuários -->
     <nav class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 pt-3 pb-2">Conversas</p>
         <div id="lista-conversas" class="space-y-0.5"></div>
@@ -223,12 +218,10 @@
                 </button>
                 <?php endif; ?>
             </div>
-
             <div id="form-privada">
                 <label class="block text-sm font-medium text-gray-300 mb-2">Selecione o usuário</label>
                 <div id="lista-usuarios-conversa" class="space-y-1 max-h-64 overflow-y-auto"></div>
             </div>
-
             <div id="form-grupo" class="hidden space-y-3">
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">Nome do grupo</label>
@@ -236,12 +229,60 @@
                            class="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Participantes</label>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Participantes iniciais</label>
                     <div id="lista-usuarios-grupo" class="space-y-1 max-h-48 overflow-y-auto"></div>
                 </div>
                 <button onclick="criarGrupo()"
                         class="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-2.5 text-sm font-bold transition">
                     Criar Grupo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODAL EDITAR GRUPO ═══ -->
+<div id="modal-editar-grupo" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-gray-800">
+            <div>
+                <h3 class="font-bold text-white">Editar Grupo</h3>
+                <p id="editar-grupo-subtitulo" class="text-xs text-gray-400 mt-0.5"></p>
+            </div>
+            <button onclick="fecharModalEditarGrupo()" class="text-gray-500 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="p-6 space-y-5">
+            <!-- Renomear -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Nome do grupo</label>
+                <div class="flex gap-2">
+                    <input type="text" id="editar-grupo-nome"
+                           class="flex-1 bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button onclick="salvarNomeGrupo()"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-4 py-2.5 text-sm font-medium transition">
+                        Salvar
+                    </button>
+                </div>
+            </div>
+            <!-- Membros atuais -->
+            <div>
+                <p class="text-sm font-medium text-gray-300 mb-3">Membros atuais</p>
+                <div id="editar-grupo-membros" class="space-y-1 max-h-40 overflow-y-auto"></div>
+            </div>
+            <!-- Adicionar membros -->
+            <div class="border-t border-gray-800 pt-4">
+                <p class="text-sm font-medium text-gray-300 mb-3">Adicionar membros</p>
+                <div id="editar-grupo-disponiveis" class="space-y-1 max-h-40 overflow-y-auto"></div>
+            </div>
+            <!-- Excluir grupo -->
+            <div class="border-t border-gray-800 pt-4">
+                <button onclick="confirmarExcluirGrupo()"
+                        class="w-full bg-red-600/10 hover:bg-red-600/20 border border-red-500/30 text-red-400 rounded-xl py-2.5 text-sm font-medium transition">
+                    Excluir grupo permanentemente
                 </button>
             </div>
         </div>
@@ -256,23 +297,25 @@ let conversaAtualId   = null;
 let conversaAtualNome = null;
 let ws                = null;
 let typingTimer       = null;
+let grupoEditandoId   = null;
+let grupoEditandoNome = null;
 
 // ── WebSocket ─────────────────────────────────
 function conectarWS() {
     const host = window.location.hostname;
-    ws = new WebSocket(`ws://${host}:8080`);
+    ws = new WebSocket('ws://' + host + ':8080');
 
-    ws.onopen = () => {
+    ws.onopen = function() {
         console.log('WebSocket conectado!');
         ws.send(JSON.stringify({
             type:        'auth',
             user_id:     CURRENT_USER_ID,
             user_nome:   CURRENT_USER_NAME,
-            conversa_id: conversaAtualId ?? 0,
+            conversa_id: conversaAtualId || 0,
         }));
     };
 
-    ws.onmessage = (event) => {
+    ws.onmessage = function(event) {
         const data = JSON.parse(event.data);
         switch (data.type) {
             case 'auth_ok':
@@ -282,7 +325,7 @@ function conectarWS() {
                 if (data.message.conversa_id == conversaAtualId) {
                     renderizarMensagem(data.message);
                     document.getElementById('messages').scrollTop = 99999;
-                    fetch(`/api/conversas/${conversaAtualId}/lida`, { method: 'POST' });
+                    fetch('/api/conversas/' + conversaAtualId + '/lida', { method: 'POST' });
                 }
                 atualizarPreviewSidebar(data.message);
                 break;
@@ -294,18 +337,18 @@ function conectarWS() {
         }
     };
 
-    ws.onclose = () => {
+    ws.onclose = function() {
         console.log('WS desconectado. Reconectando em 3s...');
         setTimeout(conectarWS, 3000);
     };
 
-    ws.onerror = (err) => {
+    ws.onerror = function(err) {
         console.error('WS erro:', err);
     };
 }
 
 // ── Inicialização ─────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
     conectarWS();
     carregarConversas();
     carregarUsuarios();
@@ -314,6 +357,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('modal-nova-conversa').addEventListener('click', function(e) {
         if (e.target === this) fecharModalNovaConversa();
+    });
+    document.getElementById('modal-editar-grupo').addEventListener('click', function(e) {
+        if (e.target === this) fecharModalEditarGrupo();
     });
 });
 
@@ -324,36 +370,37 @@ async function carregarConversas() {
     const nav   = document.getElementById('lista-conversas');
     nav.innerHTML = '';
 
-    lista.forEach(c => {
+    lista.forEach(function(c) {
         const isGrupo = c.tipo === 'grupo' || c.tipo === 'setor';
         const icone   = isGrupo ? '#' : c.nome.charAt(0).toUpperCase();
         const cor     = isGrupo ? 'bg-indigo-700' : 'bg-emerald-700';
+        const badge   = c.nao_lidas > 0 ? c.nao_lidas : '';
+        const badgeHidden = c.nao_lidas > 0 ? '' : 'hidden';
 
         const wrapper = document.createElement('div');
         wrapper.className = 'group relative';
-        wrapper.innerHTML = `
-            <button class="conversa-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left"
-                    data-id="${c.id}" data-nome="${c.nome}">
-                <div class="w-9 h-9 ${cor} rounded-xl flex items-center justify-center shrink-0 text-sm font-bold">${icone}</div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-white truncate">${c.nome}</p>
-                    <p class="preview-msg text-xs text-gray-400 truncate">${c.ultima_mensagem ?? 'Sem mensagens'}</p>
-                </div>
-                <span class="badge-nao-lidas ${c.nao_lidas > 0 ? '' : 'hidden'} bg-indigo-600 text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1 shrink-0">
-                    ${c.nao_lidas > 0 ? c.nao_lidas : ''}
-                </span>
-            </button>
-            ${isGrupo && IS_ADMIN ? `
-            <button onclick="deletarGrupo(${c.id}, '${c.nome.replace(/'/g, "\\'")}')"
-                    class="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex w-6 h-6 items-center justify-center text-gray-600 hover:text-red-400 transition rounded-lg hover:bg-red-500/10">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                </svg>
-            </button>` : ''}
-        `;
+
+        let editBtn = '';
+        if (isGrupo && IS_ADMIN) {
+            editBtn = '<button onclick="abrirModalEditarGrupo(' + c.id + ', \'' + c.nome.replace(/'/g, "\\'") + '\')" '
+                    + 'class="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex w-6 h-6 items-center justify-center text-gray-500 hover:text-indigo-400 transition rounded-lg hover:bg-indigo-500/10">'
+                    + '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+                    + '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>'
+                    + '</svg></button>';
+        }
+
+        wrapper.innerHTML = '<button class="conversa-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left" data-id="' + c.id + '" data-nome="' + c.nome + '">'
+            + '<div class="w-9 h-9 ' + cor + ' rounded-xl flex items-center justify-center shrink-0 text-sm font-bold">' + icone + '</div>'
+            + '<div class="flex-1 min-w-0">'
+            + '<p class="text-sm font-medium text-white truncate">' + c.nome + '</p>'
+            + '<p class="preview-msg text-xs text-gray-400 truncate">' + (c.ultima_mensagem || 'Sem mensagens') + '</p>'
+            + '</div>'
+            + '<span class="badge-nao-lidas ' + badgeHidden + ' bg-indigo-600 text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1 shrink-0">' + badge + '</span>'
+            + '</button>'
+            + editBtn;
 
         const btn = wrapper.querySelector('.conversa-item');
-        btn.addEventListener('click', () => selecionarConversa(c.id, c.nome, btn));
+        btn.addEventListener('click', function() { selecionarConversa(c.id, c.nome, btn); });
         nav.appendChild(wrapper);
     });
 
@@ -364,8 +411,8 @@ async function carregarConversas() {
 }
 
 function atualizarPreviewSidebar(msg) {
-    const cId = msg.conversa_id ?? conversaAtualId;
-    const btn = document.querySelector(`.conversa-item[data-id="${cId}"]`);
+    const cId = msg.conversa_id || conversaAtualId;
+    const btn = document.querySelector('.conversa-item[data-id="' + cId + '"]');
     if (!btn) return;
 
     const preview = btn.querySelector('.preview-msg');
@@ -382,23 +429,10 @@ function atualizarPreviewSidebar(msg) {
 }
 
 function limparBadge(conversaId) {
-    const btn = document.querySelector(`.conversa-item[data-id="${conversaId}"]`);
+    const btn = document.querySelector('.conversa-item[data-id="' + conversaId + '"]');
     if (!btn) return;
     const badge = btn.querySelector('.badge-nao-lidas');
     if (badge) { badge.textContent = ''; badge.classList.add('hidden'); }
-}
-
-async function deletarGrupo(id, nome) {
-    if (!confirm(`Excluir o grupo "${nome}"? Todas as mensagens serão perdidas.`)) return;
-    const res  = await fetch(`/api/conversas/${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok) { alert(data.erro); return; }
-    if (conversaAtualId == id) {
-        conversaAtualId = null;
-        document.getElementById('messages').innerHTML = '<p class="text-center text-gray-600 text-xs py-8">Selecione uma conversa</p>';
-        document.getElementById('chat-nome').textContent = 'Selecione uma conversa';
-    }
-    carregarConversas();
 }
 
 // ── Usuários (sidebar) ────────────────────────
@@ -413,19 +447,14 @@ async function carregarUsuarios() {
         return;
     }
 
-    const cores = ['bg-pink-700','bg-emerald-700','bg-amber-700','bg-purple-700'];
-    lista.forEach(u => {
+    const cores = ['bg-pink-700', 'bg-emerald-700', 'bg-amber-700', 'bg-purple-700'];
+    lista.forEach(function(u) {
         const cor = cores[u.id % cores.length];
         const btn = document.createElement('button');
         btn.className = 'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left';
-        btn.innerHTML = `
-            <div class="w-9 h-9 ${cor} rounded-xl flex items-center justify-center text-sm font-bold shrink-0">
-                ${u.nome.charAt(0).toUpperCase()}
-            </div>
-            <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-white truncate">${u.nome}</p>
-                <p class="text-xs text-gray-400 truncate">${u.setor ?? u.papel}</p>
-            </div>`;
+        btn.innerHTML = '<div class="w-9 h-9 ' + cor + ' rounded-xl flex items-center justify-center text-sm font-bold shrink-0">' + u.nome.charAt(0).toUpperCase() + '</div>'
+            + '<div class="flex-1 min-w-0"><p class="text-sm font-medium text-white truncate">' + u.nome + '</p>'
+            + '<p class="text-xs text-gray-400 truncate">' + (u.setor || u.papel) + '</p></div>';
         nav.appendChild(btn);
     });
 }
@@ -434,16 +463,16 @@ async function carregarUsuarios() {
 function selecionarConversa(id, nome, el) {
     conversaAtualId   = id;
     conversaAtualNome = nome;
-    document.querySelectorAll('.conversa-item').forEach(b => b.classList.remove('bg-gray-800'));
+    document.querySelectorAll('.conversa-item').forEach(function(b) { b.classList.remove('bg-gray-800'); });
     limparBadge(id);
     el.classList.add('bg-gray-800');
     document.getElementById('chat-nome').textContent = '#' + nome;
-    document.getElementById('msg-input').placeholder = `Mensagem para #${nome}...`;
+    document.getElementById('msg-input').placeholder = 'Mensagem para #' + nome + '...';
     document.getElementById('typing-indicator').classList.add('hidden');
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'join', conversa_id: id }));
     }
-    fetch(`/api/conversas/${id}/lida`, { method: 'POST' });
+    fetch('/api/conversas/' + id + '/lida', { method: 'POST' });
     carregarMensagens(id);
 }
 
@@ -451,14 +480,14 @@ function selecionarConversa(id, nome, el) {
 async function carregarMensagens(conversaId) {
     const box = document.getElementById('messages');
     box.innerHTML = '<p class="text-center text-gray-600 text-xs py-4">Carregando...</p>';
-    const res  = await fetch(`/api/mensagens?conversa_id=${conversaId}`);
+    const res  = await fetch('/api/mensagens?conversa_id=' + conversaId);
     const msgs = await res.json();
     box.innerHTML = '';
     if (!msgs.length) {
         box.innerHTML = '<p class="text-center text-gray-600 text-xs py-8">Nenhuma mensagem ainda. Diga olá! 👋</p>';
         return;
     }
-    msgs.forEach(m => renderizarMensagem(m));
+    msgs.forEach(function(m) { renderizarMensagem(m); });
     box.scrollTop = box.scrollHeight;
 }
 
@@ -467,24 +496,21 @@ function renderizarMensagem(m) {
     const box    = document.getElementById('messages');
     const proprio = m.usuario_id === CURRENT_USER_ID;
     const inicial = m.usuario_nome.charAt(0).toUpperCase();
-    const cores  = ['bg-emerald-700','bg-pink-700','bg-amber-700','bg-purple-700'];
+    const cores  = ['bg-emerald-700', 'bg-pink-700', 'bg-amber-700', 'bg-purple-700'];
     const cor    = proprio ? 'bg-indigo-600' : cores[m.usuario_id % cores.length];
     const hora   = new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const texto  = m.conteudo.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    const texto  = m.conteudo.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 
     const div = document.createElement('div');
-    div.className = `flex items-start gap-3 msg-enter ${proprio ? 'flex-row-reverse' : ''}`;
-    div.innerHTML = `
-        <div class="w-8 h-8 ${cor} rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">${inicial}</div>
-        <div class="max-w-lg">
-            <div class="flex items-baseline gap-2 mb-1 ${proprio ? 'flex-row-reverse' : ''}">
-                <span class="text-sm font-semibold ${proprio ? 'text-indigo-400' : 'text-white'}">${proprio ? 'Você' : m.usuario_nome}</span>
-                <span class="text-xs text-gray-500">${hora}</span>
-            </div>
-            <div class="${proprio ? 'bg-indigo-600' : 'bg-gray-800'} rounded-2xl ${proprio ? 'rounded-tr-sm' : 'rounded-tl-sm'} px-4 py-2.5 text-sm ${proprio ? 'text-white' : 'text-gray-200'}">
-                ${texto}
-            </div>
-        </div>`;
+    div.className = 'flex items-start gap-3 msg-enter' + (proprio ? ' flex-row-reverse' : '');
+    div.innerHTML = '<div class="w-8 h-8 ' + cor + ' rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">' + inicial + '</div>'
+        + '<div class="max-w-lg">'
+        + '<div class="flex items-baseline gap-2 mb-1' + (proprio ? ' flex-row-reverse' : '') + '">'
+        + '<span class="text-sm font-semibold ' + (proprio ? 'text-indigo-400' : 'text-white') + '">' + (proprio ? 'Você' : m.usuario_nome) + '</span>'
+        + '<span class="text-xs text-gray-500">' + hora + '</span>'
+        + '</div>'
+        + '<div class="' + (proprio ? 'bg-indigo-600' : 'bg-gray-800') + ' rounded-2xl ' + (proprio ? 'rounded-tr-sm' : 'rounded-tl-sm') + ' px-4 py-2.5 text-sm ' + (proprio ? 'text-white' : 'text-gray-200') + '">' + texto + '</div>'
+        + '</div>';
 
     const vazio = box.querySelector('p.text-center');
     if (vazio) vazio.remove();
@@ -504,8 +530,8 @@ function enviarMensagem() {
         fetch('/api/mensagens', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `conversa_id=${conversaAtualId}&conteudo=${encodeURIComponent(texto)}`
-        }).then(r => r.json()).then(m => {
+            body: 'conversa_id=' + conversaAtualId + '&conteudo=' + encodeURIComponent(texto)
+        }).then(function(r) { return r.json(); }).then(function(m) {
             renderizarMensagem(m);
             document.getElementById('messages').scrollTop = 99999;
         });
@@ -516,10 +542,10 @@ function enviarMensagem() {
 
 function mostrarTyping(nome) {
     const el = document.getElementById('typing-indicator');
-    el.textContent = `${nome} está digitando...`;
+    el.textContent = nome + ' está digitando...';
     el.classList.remove('hidden');
     clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => el.classList.add('hidden'), 2000);
+    typingTimer = setTimeout(function() { el.classList.add('hidden'); }, 2000);
 }
 
 function handleEnter(e) {
@@ -553,12 +579,12 @@ async function enviarChamado() {
         formData.append('titulo', titulo);
         formData.append('descricao', descricao);
         if (fileInput && fileInput.files.length > 0) {
-            Array.from(fileInput.files).forEach(f => formData.append('anexos[]', f));
+            Array.from(fileInput.files).forEach(function(f) { formData.append('anexos[]', f); });
         }
 
         const res  = await fetch('/api/chamados', { method: 'POST', body: formData });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.erro ?? 'Erro ao abrir chamado');
+        if (!res.ok) throw new Error(data.erro || 'Erro ao abrir chamado');
 
         document.getElementById('chamado-titulo').value = '';
         document.getElementById('chamado-descricao').value = '';
@@ -567,17 +593,13 @@ async function enviarChamado() {
 
         const toast = document.createElement('div');
         toast.className = 'fixed bottom-6 right-6 bg-gray-800 border border-green-500/30 text-white rounded-2xl p-4 shadow-2xl z-50 max-w-sm';
-        toast.innerHTML = `
-            <div class="flex items-start gap-3">
-                <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center shrink-0 text-sm">✓</div>
-                <div>
-                    <p class="font-semibold text-green-400 text-sm">Chamado aberto!</p>
-                    <p class="text-gray-300 text-xs mt-0.5">${data.chamado.titulo}</p>
-                    <p class="text-gray-500 text-xs mt-1">A equipe de TI foi notificada. #${data.chamado.id}</p>
-                </div>
-            </div>`;
+        toast.innerHTML = '<div class="flex items-start gap-3">'
+            + '<div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center shrink-0 text-sm">✓</div>'
+            + '<div><p class="font-semibold text-green-400 text-sm">Chamado aberto!</p>'
+            + '<p class="text-gray-300 text-xs mt-0.5">' + data.chamado.titulo + '</p>'
+            + '<p class="text-gray-500 text-xs mt-1">A equipe de TI foi notificada. #' + data.chamado.id + '</p></div></div>';
         document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 8000);
+        setTimeout(function() { toast.remove(); }, 8000);
 
     } catch (err) {
         alert('Erro: ' + err.message);
@@ -608,9 +630,9 @@ function trocarTipoConversa(tipo) {
     tipoConversa = tipo;
     document.getElementById('form-privada').classList.toggle('hidden', tipo !== 'privada');
     document.getElementById('form-grupo').classList.toggle('hidden', tipo !== 'grupo');
-    document.getElementById('tab-privada').className = `flex-1 py-2 text-sm font-medium rounded-lg transition ${tipo === 'privada' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`;
+    document.getElementById('tab-privada').className = 'flex-1 py-2 text-sm font-medium rounded-lg transition ' + (tipo === 'privada' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white');
     const tabGrupo = document.getElementById('tab-grupo');
-    if (tabGrupo) tabGrupo.className = `flex-1 py-2 text-sm font-medium rounded-lg transition ${tipo === 'grupo' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`;
+    if (tabGrupo) tabGrupo.className = 'flex-1 py-2 text-sm font-medium rounded-lg transition ' + (tipo === 'grupo' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white');
     if (tipo === 'grupo') carregarUsuariosGrupo();
 }
 
@@ -622,33 +644,28 @@ async function carregarUsuariosModal() {
         div.innerHTML = '<p class="text-xs text-gray-500 py-2">Nenhum outro usuário cadastrado.</p>';
         return;
     }
-    const cores = ['bg-pink-700','bg-emerald-700','bg-amber-700','bg-purple-700','bg-blue-700'];
-    div.innerHTML = lista.map(u => `
-        <button onclick="iniciarConversaPrivada(${u.id}, '${u.nome.replace(/'/g, "\\'")}')"
-                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left">
-            <div class="w-8 h-8 ${cores[u.id % cores.length]} rounded-lg flex items-center justify-center text-xs font-bold shrink-0">
-                ${u.nome.charAt(0).toUpperCase()}
-            </div>
-            <div>
-                <p class="text-sm font-medium text-white">${u.nome}</p>
-                <p class="text-xs text-gray-400">${u.setor ?? u.papel}</p>
-            </div>
-        </button>`).join('');
+    const cores = ['bg-pink-700', 'bg-emerald-700', 'bg-amber-700', 'bg-purple-700', 'bg-blue-700'];
+    div.innerHTML = lista.map(function(u) {
+        return '<button onclick="iniciarConversaPrivada(' + u.id + ', \'' + u.nome.replace(/'/g, "\\'") + '\')" '
+            + 'class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left">'
+            + '<div class="w-8 h-8 ' + cores[u.id % cores.length] + ' rounded-lg flex items-center justify-center text-xs font-bold shrink-0">' + u.nome.charAt(0).toUpperCase() + '</div>'
+            + '<div><p class="text-sm font-medium text-white">' + u.nome + '</p>'
+            + '<p class="text-xs text-gray-400">' + (u.setor || u.papel) + '</p></div>'
+            + '</button>';
+    }).join('');
 }
 
 async function carregarUsuariosGrupo() {
     const res   = await fetch('/api/usuarios/online');
     const lista = await res.json();
     const div   = document.getElementById('lista-usuarios-grupo');
-    const cores = ['bg-pink-700','bg-emerald-700','bg-amber-700','bg-purple-700','bg-blue-700'];
-    div.innerHTML = lista.map(u => `
-        <label class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-800 transition cursor-pointer">
-            <input type="checkbox" value="${u.id}" class="rounded" onchange="toggleParticipante(${u.id})">
-            <div class="w-7 h-7 ${cores[u.id % cores.length]} rounded-lg flex items-center justify-center text-xs font-bold shrink-0">
-                ${u.nome.charAt(0).toUpperCase()}
-            </div>
-            <span class="text-sm text-white">${u.nome}</span>
-        </label>`).join('');
+    const cores = ['bg-pink-700', 'bg-emerald-700', 'bg-amber-700', 'bg-purple-700', 'bg-blue-700'];
+    div.innerHTML = lista.map(function(u) {
+        return '<label class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-800 transition cursor-pointer">'
+            + '<input type="checkbox" value="' + u.id + '" class="rounded" onchange="toggleParticipante(' + u.id + ')">'
+            + '<div class="w-7 h-7 ' + cores[u.id % cores.length] + ' rounded-lg flex items-center justify-center text-xs font-bold shrink-0">' + u.nome.charAt(0).toUpperCase() + '</div>'
+            + '<span class="text-sm text-white">' + u.nome + '</span></label>';
+    }).join('');
 }
 
 function toggleParticipante(id) {
@@ -660,13 +677,13 @@ async function iniciarConversaPrivada(usuarioId, usuarioNome) {
     const res  = await fetch('/api/conversas', {
         method:  'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body:    `tipo=privada&usuario_id=${usuarioId}`,
+        body:    'tipo=privada&usuario_id=' + usuarioId,
     });
     const data = await res.json();
     if (!res.ok) { alert(data.erro); return; }
     fecharModalNovaConversa();
     await carregarConversas();
-    const btn = document.querySelector(`.conversa-item[data-id="${data.id}"]`);
+    const btn = document.querySelector('.conversa-item[data-id="' + data.id + '"]');
     if (btn) selecionarConversa(data.id, usuarioNome, btn);
 }
 
@@ -677,14 +694,112 @@ async function criarGrupo() {
     const res  = await fetch('/api/conversas', {
         method:  'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body:    `tipo=grupo&nome=${encodeURIComponent(nome)}&participantes=${participantes}`,
+        body:    'tipo=grupo&nome=' + encodeURIComponent(nome) + '&participantes=' + participantes,
     });
     const data = await res.json();
     if (!res.ok) { alert(data.erro); return; }
     fecharModalNovaConversa();
     await carregarConversas();
-    const btn = document.querySelector(`.conversa-item[data-id="${data.id}"]`);
+    const btn = document.querySelector('.conversa-item[data-id="' + data.id + '"]');
     if (btn) selecionarConversa(data.id, nome, btn);
+}
+
+// ── Editar Grupo ──────────────────────────────
+function abrirModalEditarGrupo(id, nome) {
+    grupoEditandoId   = id;
+    grupoEditandoNome = nome;
+    document.getElementById('editar-grupo-nome').value = nome;
+    document.getElementById('editar-grupo-subtitulo').textContent = nome;
+    document.getElementById('modal-editar-grupo').classList.remove('hidden');
+    carregarMembrosGrupo();
+}
+
+function fecharModalEditarGrupo() {
+    document.getElementById('modal-editar-grupo').classList.add('hidden');
+    grupoEditandoId   = null;
+    grupoEditandoNome = null;
+}
+
+async function carregarMembrosGrupo() {
+    const resMembros = await fetch('/api/conversas/' + grupoEditandoId + '/participantes');
+    const membros    = await resMembros.json();
+    const resAll     = await fetch('/api/usuarios/online');
+    const todos      = await resAll.json();
+
+    const divMembros = document.getElementById('editar-grupo-membros');
+    const divDisp    = document.getElementById('editar-grupo-disponiveis');
+    const cores      = ['bg-indigo-700', 'bg-emerald-700', 'bg-pink-700', 'bg-amber-700', 'bg-purple-700'];
+    const ids        = membros.map(function(u) { return u.id; });
+
+    divMembros.innerHTML = membros.length ? membros.map(function(u) {
+        const ehEu    = u.id === CURRENT_USER_ID;
+        const removeBtn = !ehEu
+            ? '<button onclick="removerMembroGrupo(' + u.id + ')" class="text-gray-600 hover:text-red-400 transition p-1 rounded-lg hover:bg-red-500/10" title="Remover">'
+              + '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>'
+              + '</button>'
+            : '<span class="text-xs text-gray-600">você</span>';
+        return '<div class="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-800">'
+            + '<div class="w-8 h-8 ' + cores[u.id % cores.length] + ' rounded-lg flex items-center justify-center text-xs font-bold shrink-0">' + u.nome.charAt(0).toUpperCase() + '</div>'
+            + '<div class="flex-1 min-w-0"><p class="text-sm font-medium text-white truncate">' + u.nome + '</p>'
+            + '<p class="text-xs text-gray-400">' + (u.setor || u.papel) + '</p></div>'
+            + removeBtn + '</div>';
+    }).join('') : '<p class="text-xs text-gray-500 px-2">Nenhum membro.</p>';
+
+    const disponiveis = todos.filter(function(u) { return !ids.includes(u.id); });
+    divDisp.innerHTML = disponiveis.length ? disponiveis.map(function(u) {
+        return '<button onclick="adicionarMembroGrupo(' + u.id + ')" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-800 transition text-left">'
+            + '<div class="w-8 h-8 ' + cores[u.id % cores.length] + ' rounded-lg flex items-center justify-center text-xs font-bold shrink-0">' + u.nome.charAt(0).toUpperCase() + '</div>'
+            + '<div class="flex-1 min-w-0"><p class="text-sm font-medium text-white truncate">' + u.nome + '</p>'
+            + '<p class="text-xs text-gray-400">' + (u.setor || u.papel) + '</p></div>'
+            + '<span class="text-xs text-indigo-400 shrink-0">+ Adicionar</span>'
+            + '</button>';
+    }).join('') : '<p class="text-xs text-gray-500 px-2">Todos os usuários já estão no grupo.</p>';
+}
+
+async function salvarNomeGrupo() {
+    const nome = document.getElementById('editar-grupo-nome').value.trim();
+    if (!nome) { alert('Informe o nome do grupo.'); return; }
+    const res = await fetch('/api/conversas/' + grupoEditandoId, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:    'nome=' + encodeURIComponent(nome),
+    });
+    if (res.ok) {
+        grupoEditandoNome = nome;
+        document.getElementById('editar-grupo-subtitulo').textContent = nome;
+        await carregarConversas();
+    }
+}
+
+async function adicionarMembroGrupo(usuarioId) {
+    const res = await fetch('/api/conversas/' + grupoEditandoId + '/participantes', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:    'usuario_id=' + usuarioId,
+    });
+    if (res.ok) await carregarMembrosGrupo();
+}
+
+async function removerMembroGrupo(usuarioId) {
+    if (!confirm('Remover este membro do grupo?')) return;
+    const res  = await fetch('/api/conversas/' + grupoEditandoId + '/participantes/' + usuarioId, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) { alert(data.erro); return; }
+    await carregarMembrosGrupo();
+}
+
+async function confirmarExcluirGrupo() {
+    if (!confirm('Excluir o grupo "' + grupoEditandoNome + '" permanentemente? Todas as mensagens serão perdidas.')) return;
+    const res = await fetch('/api/conversas/' + grupoEditandoId, { method: 'DELETE' });
+    if (res.ok) {
+        fecharModalEditarGrupo();
+        if (conversaAtualId == grupoEditandoId) {
+            conversaAtualId = null;
+            document.getElementById('messages').innerHTML = '<p class="text-center text-gray-600 text-xs py-8">Selecione uma conversa</p>';
+            document.getElementById('chat-nome').textContent = 'Selecione uma conversa';
+        }
+        carregarConversas();
+    }
 }
 </script>
 
