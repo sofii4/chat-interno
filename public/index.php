@@ -60,6 +60,9 @@ $app->group('/api', function ($group) {
     $group->post('/conversas',                    [ChatController::class, 'criarConversa']);
     $group->post('/conversas/{id}/participantes', [ChatController::class, 'adicionarParticipante']);
 
+    $group->delete('/conversas/{id}',        [ChatController::class, 'deletarConversa']);
+    $group->post('/conversas/{id}/lida',   [ChatController::class, 'marcarComoLida']);
+
     // Chamados
     $group->post('/chamados',              [ChamadoController::class, 'criar']);
     $group->get('/chamados',               [ChamadoController::class, 'listar']);

@@ -244,6 +244,9 @@ async function carregarUsuarios() {
                         Editar
                     </button>
                     ${u.ativo ? `
+                    <button onclick="reativarUsuario(${u.id}, '${u.nome}')" style="display:none"></button>` : `
+                    <button onclick="reativarUsuario(${u.id}, '${u.nome}')"  class="text-xs text-green-400 hover:text-green-300 transition px-2 py-1 rounded-lg hover:bg-green-500/10">Reativar</button>`}
+                    ${u.ativo ? `
                     <button onclick="desativarUsuario(${u.id}, '${u.nome}')"
                             class="text-xs text-red-400 hover:text-red-300 transition px-2 py-1 rounded-lg hover:bg-red-500/10">
                         Desativar
@@ -327,6 +330,16 @@ async function desativarUsuario(id, nome) {
     if (!confirm(`Desativar o usuário "${nome}"? Ele não conseguirá mais fazer login.`)) return;
     const res = await fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' });
     if (res.ok) { carregarUsuarios(); mostrarToast('Usuário desativado.'); }
+}
+
+async function reativarUsuario(id, nome) {
+    if (!confirm(`Reativar o usuário "${nome}"?`)) return;
+    const res = await fetch(`/api/admin/usuarios/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'ativo=1'
+    });
+    if (res.ok) { carregarUsuarios(); mostrarToast('Usuário reativado!'); }
 }
 
 // ── Setores ───────────────────────────────────

@@ -32,13 +32,17 @@ class ChatController
                 (SELECT m.conteudo FROM mensagens m
                  WHERE m.conversa_id = c.id
                  ORDER BY m.criado_em DESC LIMIT 1) AS ultima_mensagem,
-                0 AS nao_lidas
+                (SELECT COUNT(*) FROM mensagens m
+                 WHERE m.conversa_id = c.id
+                 AND m.usuario_id != ?
+                 AND (p.ultima_leitura IS NULL OR m.criado_em > p.ultima_leitura)
+                ) AS nao_lidas
             FROM conversas c
             INNER JOIN participantes p ON p.conversa_id = c.id
             WHERE p.usuario_id = ?
             ORDER BY c.tipo ASC, c.criado_em ASC
         ");
-        $stmt->execute([$userId, $userId]);
+        $stmt->execute([$userId, $userId, $userId]);
         $conversas = $stmt->fetchAll();
 
         return Json::json($response, $conversas);
@@ -283,6 +287,56 @@ class ChatController
         $pdo  = getDbConnection();
         $stmt = $pdo->prepare("INSERT IGNORE INTO participantes (conversa_id, usuario_id) VALUES (?, ?)");
         $stmt->execute([$conversaId, $usuarioId]);
+
+        return Json::json($response, ['ok' => true]);
+    }
+
+
+    // DELETE /api/conversas/{id}
+    public function deletarConversa(Request $request, Response $response, array $args): Response
+    {
+        $papel     = $request->getAttribute('user_papel');
+        $userId    = $request->getAttribute('user_id');
+        $conversaId = (int) $args['id'];
+
+        if ($papel !== 'admin') {
+            return Json::erro($response, 'Apenas administradores podem excluir grupos', 403);
+        }
+
+        $pdo  = getDbConnection();
+
+        // Verifica se é grupo (não permite deletar privadas)
+        $check = $pdo->prepare("SELECT tipo FROM conversas WHERE id = ?");
+        $check->execute([$conversaId]);
+        $conversa = $check->fetch();
+
+        if (!$conversa) {
+            return Json::erro($response, 'Conversa não encontrada', 404);
+        }
+
+        if ($conversa['tipo'] === 'privada') {
+            return Json::erro($response, 'Não é possível excluir conversas privadas');
+        }
+
+        // Deleta tudo em cascata (participantes e mensagens via FK)
+        $pdo->prepare("DELETE FROM conversas WHERE id = ?")->execute([$conversaId]);
+
+        return Json::json($response, ['ok' => true]);
+    }
+
+
+    // POST /api/conversas/{id}/lida
+    public function marcarComoLida(Request $request, Response $response, array $args): Response
+    {
+        $userId     = $request->getAttribute('user_id');
+        $conversaId = (int) $args['id'];
+
+        $pdo  = getDbConnection();
+        $stmt = $pdo->prepare("
+            UPDATE participantes SET ultima_leitura = NOW()
+            WHERE conversa_id = ? AND usuario_id = ?
+        ");
+        $stmt->execute([$conversaId, $userId]);
 
         return Json::json($response, ['ok' => true]);
     }
