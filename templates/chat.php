@@ -116,7 +116,9 @@
                 <p class="text-center text-gray-600 text-xs py-8">Selecione uma conversa para começar</p>
             </div>
 
-            <div class="p-4 bg-gray-900 border-t border-gray-800 shrink-0">
+            <div id="typing-indicator" class="hidden px-6 py-1 text-xs text-gray-500 italic"></div>
+    <div id="typing-indicator" class="hidden px-6 py-1 text-xs text-gray-500 italic"></div>
+    <div class="p-4 bg-gray-900 border-t border-gray-800 shrink-0">
                 <div
                     class="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-indigo-500 transition">
                     <button class="text-gray-400 hover:text-indigo-400 transition shrink-0 mb-0.5">
@@ -220,72 +222,146 @@
         </div>
 
         <script>
-            const CURRENT_USER_ID = <?= (int) $userId ?>;
-            const CURRENT_USER_NAME = "<?= addslashes(htmlspecialchars($userName)) ?>";
-            let conversaAtualId = null;
-            let conversaAtualNome = null;
-            let enviando = false;
+const CURRENT_USER_ID   = <?= (int) $userId ?>;
+const CURRENT_USER_NAME = "<?= addslashes(htmlspecialchars($userName)) ?>";
+let conversaAtualId   = null;
+let conversaAtualNome = null;
+let ws                = null;
+let typingTimer       = null;
 
-            document.addEventListener('DOMContentLoaded', () => {
-                carregarConversas();
-                carregarUsuarios();
-                document.querySelectorAll('.prioridade-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        prioridadeSelecionada = btn.dataset.valor;
-                        document.querySelectorAll('.prioridade-btn').forEach(b => {
-                            b.className = 'prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 transition';
-                        });
-                        const cores = {
-                            baixa: 'border-green-500 text-green-400', media: 'border-yellow-500 text-yellow-400',
-                            alta: 'border-orange-500 text-orange-400', critica: 'border-red-500 text-red-400'
-                        };
-                        btn.className = `prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border ${cores[btn.dataset.valor]} transition`;
-                    });
-                });
-                document.getElementById('modal-emergencia').addEventListener('click', function (e) {
-                    if (e.target === this) fecharEmergencia();
-                });
+// ── WebSocket ─────────────────────────────────
+function conectarWS() {
+    const host = window.location.hostname;
+    ws = new WebSocket(`ws://${host}:8080`);
+
+    ws.onopen = () => {
+        console.log('WebSocket conectado!');
+        // Autentica imediatamente ao conectar
+        ws.send(JSON.stringify({
+            type:       'auth',
+            user_id:    CURRENT_USER_ID,
+            user_nome:  CURRENT_USER_NAME,
+            conversa_id: conversaAtualId ?? 0,
+        }));
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        switch (data.type) {
+            case 'auth_ok':
+                console.log('Autenticado no WS como userId:', data.userId);
+                break;
+
+            case 'new_message':
+                // Só renderiza se for da conversa atual
+                if (data.message.conversa_id == conversaAtualId ||
+                    data.message.usuario_id  == CURRENT_USER_ID) {
+                    renderizarMensagem(data.message);
+                    document.getElementById('messages').scrollTop = 99999;
+                }
+                atualizarPreviewSidebar(data.message);
+                break;
+
+            case 'typing':
+                if (data.conversa_id == conversaAtualId) {
+                    mostrarTyping(data.user_nome);
+                }
+                break;
+        }
+    };
+
+    ws.onclose = () => {
+        console.log('WS desconectado. Reconectando em 3s...');
+        setTimeout(conectarWS, 3000); // reconexão automática
+    };
+
+    ws.onerror = (err) => {
+        console.error('WS erro:', err);
+    };
+}
+
+// ── Inicialização ─────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    conectarWS();
+    carregarConversas();
+    carregarUsuarios();
+
+    document.querySelectorAll('.prioridade-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            prioridadeSelecionada = btn.dataset.valor;
+            document.querySelectorAll('.prioridade-btn').forEach(b => {
+                b.className = 'prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 transition';
             });
+            const cores = {
+                baixa:  'border-green-500 text-green-400',
+                media:  'border-yellow-500 text-yellow-400',
+                alta:   'border-orange-500 text-orange-400',
+                critica:'border-red-500 text-red-400'
+            };
+            btn.className = `prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border ${cores[btn.dataset.valor]} transition`;
+        });
+    });
 
-            async function carregarConversas() {
-                const res = await fetch('/api/conversas');
-                const lista = await res.json();
-                const nav = document.getElementById('lista-conversas');
-                nav.innerHTML = '';
-                lista.forEach(c => {
-                    const btn = document.createElement('button');
-                    btn.className = 'conversa-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left';
-                    btn.dataset.id = c.id;
-                    btn.innerHTML = `
+    document.getElementById('modal-emergencia').addEventListener('click', function(e) {
+        if (e.target === this) fecharEmergencia();
+    });
+});
+
+// ── Conversas (sidebar) ───────────────────────
+async function carregarConversas() {
+    const res   = await fetch('/api/conversas');
+    const lista = await res.json();
+    const nav   = document.getElementById('lista-conversas');
+    nav.innerHTML = '';
+
+    lista.forEach(c => {
+        const btn = document.createElement('button');
+        btn.className = 'conversa-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left';
+        btn.dataset.id = c.id;
+        btn.dataset.nome = c.nome;
+        btn.innerHTML = `
             <div class="w-9 h-9 bg-indigo-700 rounded-xl flex items-center justify-center shrink-0 text-sm">#</div>
             <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-white truncate">${c.nome}</p>
-                <p class="text-xs text-gray-400 truncate">${c.ultima_mensagem ?? 'Sem mensagens'}</p>
+                <p class="preview-msg text-xs text-gray-400 truncate">${c.ultima_mensagem ?? 'Sem mensagens'}</p>
             </div>`;
-                    btn.addEventListener('click', () => selecionarConversa(c.id, c.nome, btn));
-                    nav.appendChild(btn);
-                });
-                if (lista.length > 0) {
-                    const primeiro = nav.querySelector('.conversa-item');
-                    selecionarConversa(lista[0].id, lista[0].nome, primeiro);
-                }
-            }
+        btn.addEventListener('click', () => selecionarConversa(c.id, c.nome, btn));
+        nav.appendChild(btn);
+    });
 
-            async function carregarUsuarios() {
-                const res = await fetch('/api/usuarios/online');
-                const lista = await res.json();
-                const nav = document.getElementById('lista-usuarios');
-                nav.innerHTML = '';
-                if (lista.length === 0) {
-                    nav.innerHTML = '<p class="text-xs text-gray-600 px-3 py-2">Nenhum outro usuário cadastrado</p>';
-                    return;
-                }
-                const cores = ['bg-pink-700', 'bg-emerald-700', 'bg-amber-700', 'bg-purple-700'];
-                lista.forEach(u => {
-                    const cor = cores[u.id % cores.length];
-                    const btn = document.createElement('button');
-                    btn.className = 'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left';
-                    btn.innerHTML = `
+    if (lista.length > 0) {
+        const primeiro = nav.querySelector('.conversa-item');
+        selecionarConversa(lista[0].id, lista[0].nome, primeiro);
+    }
+}
+
+function atualizarPreviewSidebar(msg) {
+    const btn = document.querySelector(`.conversa-item[data-id="${msg.conversa_id ?? conversaAtualId}"]`);
+    if (btn) {
+        const preview = btn.querySelector('.preview-msg');
+        if (preview) preview.textContent = msg.conteudo.substring(0, 40);
+    }
+}
+
+// ── Usuários (sidebar) ────────────────────────
+async function carregarUsuarios() {
+    const res   = await fetch('/api/usuarios/online');
+    const lista = await res.json();
+    const nav   = document.getElementById('lista-usuarios');
+    nav.innerHTML = '';
+
+    if (lista.length === 0) {
+        nav.innerHTML = '<p class="text-xs text-gray-600 px-3 py-2">Nenhum outro usuário cadastrado</p>';
+        return;
+    }
+
+    const cores = ['bg-pink-700','bg-emerald-700','bg-amber-700','bg-purple-700'];
+    lista.forEach(u => {
+        const cor = cores[u.id % cores.length];
+        const btn = document.createElement('button');
+        btn.className = 'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left';
+        btn.innerHTML = `
             <div class="w-9 h-9 ${cor} rounded-xl flex items-center justify-center text-sm font-bold shrink-0">
                 ${u.nome.charAt(0).toUpperCase()}
             </div>
@@ -293,45 +369,64 @@
                 <p class="text-sm font-medium text-white truncate">${u.nome}</p>
                 <p class="text-xs text-gray-400 truncate">${u.setor ?? u.papel}</p>
             </div>`;
-                    nav.appendChild(btn);
-                });
-            }
+        nav.appendChild(btn);
+    });
+}
 
-            function selecionarConversa(id, nome, el) {
-                conversaAtualId = id;
-                conversaAtualNome = nome;
-                document.querySelectorAll('.conversa-item').forEach(b => b.classList.remove('bg-gray-800'));
-                el.classList.add('bg-gray-800');
-                document.getElementById('chat-nome').textContent = '#' + nome;
-                document.getElementById('msg-input').placeholder = `Mensagem para #${nome}...`;
-                carregarMensagens(id);
-            }
+// ── Selecionar conversa ───────────────────────
+function selecionarConversa(id, nome, el) {
+    conversaAtualId   = id;
+    conversaAtualNome = nome;
 
-            async function carregarMensagens(conversaId) {
-                const box = document.getElementById('messages');
-                box.innerHTML = '<p class="text-center text-gray-600 text-xs py-4">Carregando...</p>';
-                const res = await fetch(`/api/mensagens?conversa_id=${conversaId}`);
-                const msgs = await res.json();
-                box.innerHTML = '';
-                if (msgs.length === 0) {
-                    box.innerHTML = '<p class="text-center text-gray-600 text-xs py-8">Nenhuma mensagem ainda. Diga olá! 👋</p>';
-                    return;
-                }
-                msgs.forEach(m => renderizarMensagem(m));
-                box.scrollTop = box.scrollHeight;
-            }
+    document.querySelectorAll('.conversa-item').forEach(b => b.classList.remove('bg-gray-800'));
+    el.classList.add('bg-gray-800');
 
-            function renderizarMensagem(m) {
-                const box = document.getElementById('messages');
-                const proprio = m.usuario_id === CURRENT_USER_ID;
-                const inicial = m.usuario_nome.charAt(0).toUpperCase();
-                const cores = ['bg-emerald-700', 'bg-pink-700', 'bg-amber-700', 'bg-purple-700'];
-                const cor = proprio ? 'bg-indigo-600' : cores[m.usuario_id % cores.length];
-                const hora = new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                const texto = m.conteudo.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-                const div = document.createElement('div');
-                div.className = `flex items-start gap-3 msg-enter ${proprio ? 'flex-row-reverse' : ''}`;
-                div.innerHTML = `
+    document.getElementById('chat-nome').textContent = '#' + nome;
+    document.getElementById('msg-input').placeholder = `Mensagem para #${nome}...`;
+    document.getElementById('typing-indicator').classList.add('hidden');
+
+    // Avisa o servidor WS que mudou de sala
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'join', conversa_id: id }));
+    }
+
+    carregarMensagens(id);
+}
+
+// ── Histórico via HTTP (não WebSocket) ────────
+async function carregarMensagens(conversaId) {
+    const box = document.getElementById('messages');
+    box.innerHTML = '<p class="text-center text-gray-600 text-xs py-4">Carregando...</p>';
+
+    const res  = await fetch(`/api/mensagens?conversa_id=${conversaId}`);
+    const msgs = await res.json();
+
+    box.innerHTML = '';
+
+    if (msgs.length === 0) {
+        box.innerHTML = '<p class="text-center text-gray-600 text-xs py-8">Nenhuma mensagem ainda. Diga olá! 👋</p>';
+        return;
+    }
+
+    msgs.forEach(m => renderizarMensagem(m));
+    box.scrollTop = box.scrollHeight;
+}
+
+// ── Renderizar mensagem ───────────────────────
+function renderizarMensagem(m) {
+    const box    = document.getElementById('messages');
+    const proprio = m.usuario_id === CURRENT_USER_ID;
+    const inicial = m.usuario_nome.charAt(0).toUpperCase();
+    const cores  = ['bg-emerald-700','bg-pink-700','bg-amber-700','bg-purple-700'];
+    const cor    = proprio ? 'bg-indigo-600' : cores[m.usuario_id % cores.length];
+    const hora   = new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const texto  = m.conteudo
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\n/g,'<br>');
+
+    const div = document.createElement('div');
+    div.className = `flex items-start gap-3 msg-enter ${proprio ? 'flex-row-reverse' : ''}`;
+    div.innerHTML = `
         <div class="w-8 h-8 ${cor} rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">${inicial}</div>
         <div class="max-w-lg">
             <div class="flex items-baseline gap-2 mb-1 ${proprio ? 'flex-row-reverse' : ''}">
@@ -342,52 +437,79 @@
                 ${texto}
             </div>
         </div>`;
-                box.appendChild(div);
-            }
 
-            async function enviarMensagem() {
-                if (!conversaAtualId || enviando) return;
-                const input = document.getElementById('msg-input');
-                const texto = input.value.trim();
-                if (!texto) return;
-                enviando = true;
-                input.value = '';
-                input.style.height = 'auto';
-                const res = await fetch('/api/mensagens', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `conversa_id=${conversaAtualId}&conteudo=${encodeURIComponent(texto)}`
-                });
-                const nova = await res.json();
-                enviando = false;
-                if (res.ok) {
-                    renderizarMensagem(nova);
-                    document.getElementById('messages').scrollTop = 99999;
-                    carregarConversas();
-                }
-            }
+    // Remove mensagem de "sem mensagens" se existir
+    const vazio = box.querySelector('p.text-center');
+    if (vazio) vazio.remove();
 
-            function handleEnter(e) {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensagem(); }
-            }
+    box.appendChild(div);
+}
 
-            function autoResize(el) {
-                el.style.height = 'auto';
-                el.style.height = Math.min(el.scrollHeight, 128) + 'px';
-            }
+// ── Enviar mensagem via WebSocket ─────────────
+function enviarMensagem() {
+    if (!conversaAtualId) return;
+    const input = document.getElementById('msg-input');
+    const texto = input.value.trim();
+    if (!texto) return;
 
-            let prioridadeSelecionada = 'media';
-            function abrirEmergencia() { document.getElementById('modal-emergencia').classList.remove('hidden'); }
-            function fecharEmergencia() { document.getElementById('modal-emergencia').classList.add('hidden'); }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        // Envia via WebSocket — o servidor salva no banco e faz broadcast
+        ws.send(JSON.stringify({
+            type:        'send_message',
+            conversa_id: conversaAtualId,
+            conteudo:    texto,
+        }));
+    } else {
+        // Fallback HTTP se WS estiver desconectado
+        fetch('/api/mensagens', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body:    `conversa_id=${conversaAtualId}&conteudo=${encodeURIComponent(texto)}`
+        }).then(r => r.json()).then(m => {
+            renderizarMensagem(m);
+            document.getElementById('messages').scrollTop = 99999;
+        });
+    }
 
-            async function enviarChamado() {
-                const titulo = document.getElementById('chamado-titulo').value.trim();
-                if (!titulo) { alert('Informe o título do problema.'); return; }
-                alert('Chamado aberto! A equipe de TI foi notificada.');
-                fecharEmergencia();
-            }
-        </script>
+    input.value = '';
+    input.style.height = 'auto';
+}
 
-    </body>
+// ── Indicador "digitando..." ──────────────────
+function mostrarTyping(nome) {
+    const el = document.getElementById('typing-indicator');
+    el.textContent = `${nome} está digitando...`;
+    el.classList.remove('hidden');
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => el.classList.add('hidden'), 2000);
+}
 
-    </html>
+function handleEnter(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensagem(); }
+}
+
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 128) + 'px';
+
+    // Avisa outros usuários que está digitando
+    if (ws && ws.readyState === WebSocket.OPEN && conversaAtualId) {
+        ws.send(JSON.stringify({ type: 'typing', conversa_id: conversaAtualId }));
+    }
+}
+
+// ── Emergência ────────────────────────────────
+let prioridadeSelecionada = 'media';
+function abrirEmergencia()  { document.getElementById('modal-emergencia').classList.remove('hidden'); }
+function fecharEmergencia() { document.getElementById('modal-emergencia').classList.add('hidden'); }
+
+async function enviarChamado() {
+    const titulo = document.getElementById('chamado-titulo').value.trim();
+    if (!titulo) { alert('Informe o título do problema.'); return; }
+    alert('Chamado aberto! A equipe de TI foi notificada.');
+    fecharEmergencia();
+}
+</script>
+
+</body>
+</html>
