@@ -80,8 +80,8 @@
                 </button>
             </div>
 
-            <div class="p-3">
-                <div class="relative">
+            <div class="p-3 flex items-center gap-2">
+                <div class="relative flex-1">
                     <svg class="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -90,6 +90,12 @@
                     <input type="text" placeholder="Buscar..."
                         class="w-full bg-gray-800 border border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
+                <button onclick="abrirModalNovaConversa()" title="Nova conversa"
+                        class="w-9 h-9 bg-gray-800 border border-gray-700 hover:border-indigo-500 hover:text-indigo-400 text-gray-400 rounded-xl flex items-center justify-center transition shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </button>
             </div>
 
             <nav class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
@@ -171,23 +177,6 @@
                         <label class="block text-sm font-medium text-gray-300 mb-2">Título do problema</label>
                         <input type="text" id="chamado-titulo" placeholder="Ex: Impressora do 2º andar não funciona"
                             class="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-2">Prioridade</label>
-                        <div class="flex gap-2">
-                            <button
-                                class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 transition"
-                                data-valor="baixa">Baixa</button>
-                            <button
-                                class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-yellow-500 text-yellow-400 transition"
-                                data-valor="media">Média</button>
-                            <button
-                                class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 transition"
-                                data-valor="alta">Alta</button>
-                            <button
-                                class="prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 transition"
-                                data-valor="critica">🔴 Crítica</button>
-                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-2">Descrição detalhada</label>
@@ -285,22 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
     conectarWS();
     carregarConversas();
     carregarUsuarios();
-
-    document.querySelectorAll('.prioridade-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            prioridadeSelecionada = btn.dataset.valor;
-            document.querySelectorAll('.prioridade-btn').forEach(b => {
-                b.className = 'prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-gray-400 transition';
-            });
-            const cores = {
-                baixa:  'border-green-500 text-green-400',
-                media:  'border-yellow-500 text-yellow-400',
-                alta:   'border-orange-500 text-orange-400',
-                critica:'border-red-500 text-red-400'
-            };
-            btn.className = `prioridade-btn px-4 py-1.5 rounded-lg text-xs font-medium border ${cores[btn.dataset.valor]} transition`;
-        });
-    });
 
     document.getElementById('modal-emergencia').addEventListener('click', function(e) {
         if (e.target === this) fecharEmergencia();
@@ -498,7 +471,6 @@ function autoResize(el) {
 }
 
 // ── Emergência ────────────────────────────────
-let prioridadeSelecionada = 'media';
 function abrirEmergencia()  { document.getElementById('modal-emergencia').classList.remove('hidden'); }
 function fecharEmergencia() { document.getElementById('modal-emergencia').classList.add('hidden'); }
 
@@ -517,7 +489,6 @@ async function enviarChamado() {
         const formData = new FormData();
         formData.append('titulo',     titulo);
         formData.append('descricao',  descricao);
-        formData.append('prioridade', prioridadeSelecionada);
 
         if (fileInput && fileInput.files.length > 0) {
             Array.from(fileInput.files).forEach(f => formData.append('anexos[]', f));
@@ -562,7 +533,161 @@ function mostrarSucesso(chamado) {
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 8000);
 }
+
+// ── Nova Conversa ─────────────────────────────
+let tipoConversa = 'privada';
+let usuariosSelecionados = new Set();
+
+async function abrirModalNovaConversa() {
+    tipoConversa = 'privada';
+    usuariosSelecionados.clear();
+    document.getElementById('form-privada').classList.remove('hidden');
+    document.getElementById('form-grupo').classList.add('hidden');
+    document.getElementById('modal-nova-conversa').classList.remove('hidden');
+    await carregarUsuariosModal();
+}
+
+function fecharModalNovaConversa() {
+    document.getElementById('modal-nova-conversa').classList.add('hidden');
+}
+
+function trocarTipoConversa(tipo) {
+    tipoConversa = tipo;
+    document.getElementById('form-privada').classList.toggle('hidden', tipo !== 'privada');
+    document.getElementById('form-grupo').classList.toggle('hidden', tipo !== 'grupo');
+    document.getElementById('tab-privada').className = `flex-1 py-2 text-sm font-medium rounded-lg transition ${tipo === 'privada' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`;
+    const tabGrupo = document.getElementById('tab-grupo');
+    if (tabGrupo) tabGrupo.className = `flex-1 py-2 text-sm font-medium rounded-lg transition ${tipo === 'grupo' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`;
+    if (tipo === 'grupo') carregarUsuariosGrupo();
+}
+
+async function carregarUsuariosModal() {
+    const res   = await fetch('/api/usuarios/online');
+    const lista = await res.json();
+    const div   = document.getElementById('lista-usuarios-conversa');
+    if (!lista.length) {
+        div.innerHTML = '<p class="text-xs text-gray-500 py-2">Nenhum outro usuário cadastrado.</p>';
+        return;
+    }
+    const cores = ['bg-pink-700','bg-emerald-700','bg-amber-700','bg-purple-700','bg-blue-700'];
+    div.innerHTML = lista.map(u => `
+        <button onclick="iniciarConversaPrivada(${u.id}, '${u.nome.replace(/'/g, "\'")}')"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left">
+            <div class="w-8 h-8 ${cores[u.id % cores.length]} rounded-lg flex items-center justify-center text-xs font-bold shrink-0">
+                ${u.nome.charAt(0).toUpperCase()}
+            </div>
+            <div>
+                <p class="text-sm font-medium text-white">${u.nome}</p>
+                <p class="text-xs text-gray-400">${u.setor ?? u.papel}</p>
+            </div>
+        </button>`).join('');
+}
+
+async function carregarUsuariosGrupo() {
+    const res   = await fetch('/api/usuarios/online');
+    const lista = await res.json();
+    const div   = document.getElementById('lista-usuarios-grupo');
+    const cores = ['bg-pink-700','bg-emerald-700','bg-amber-700','bg-purple-700','bg-blue-700'];
+    div.innerHTML = lista.map(u => `
+        <label class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-800 transition cursor-pointer">
+            <input type="checkbox" value="${u.id}" class="participante-check rounded" onchange="toggleParticipante(${u.id})">
+            <div class="w-7 h-7 ${cores[u.id % cores.length]} rounded-lg flex items-center justify-center text-xs font-bold shrink-0">
+                ${u.nome.charAt(0).toUpperCase()}
+            </div>
+            <span class="text-sm text-white">${u.nome}</span>
+        </label>`).join('');
+}
+
+function toggleParticipante(id) {
+    if (usuariosSelecionados.has(id)) usuariosSelecionados.delete(id);
+    else usuariosSelecionados.add(id);
+}
+
+async function iniciarConversaPrivada(usuarioId, usuarioNome) {
+    const res  = await fetch('/api/conversas', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:    `tipo=privada&usuario_id=${usuarioId}`,
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.erro); return; }
+    fecharModalNovaConversa();
+    await carregarConversas();
+    const btn = document.querySelector(`.conversa-item[data-id="${data.id}"]`);
+    if (btn) selecionarConversa(data.id, usuarioNome, btn);
+}
+
+async function criarGrupo() {
+    const nome = document.getElementById('grupo-nome').value.trim();
+    if (!nome) { alert('Informe o nome do grupo.'); return; }
+    const participantes = Array.from(usuariosSelecionados).join(',');
+    const res  = await fetch('/api/conversas', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:    `tipo=grupo&nome=${encodeURIComponent(nome)}&participantes=${participantes}`,
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.erro); return; }
+    fecharModalNovaConversa();
+    await carregarConversas();
+    const btn = document.querySelector(`.conversa-item[data-id="${data.id}"]`);
+    if (btn) selecionarConversa(data.id, nome, btn);
+}
+
 </script>
+
+
+<!-- MODAL NOVA CONVERSA -->
+<div id="modal-nova-conversa" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-gray-800">
+            <h3 class="font-bold text-white">Nova Conversa</h3>
+            <button onclick="fecharModalNovaConversa()" class="text-gray-500 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <!-- Tabs privada/grupo -->
+            <div class="flex bg-gray-800 rounded-xl p-1 gap-1">
+                <button id="tab-privada" onclick="trocarTipoConversa('privada')"
+                        class="flex-1 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white transition">
+                    Conversa Privada
+                </button>
+                <?php if ($userPapel === 'admin'): ?>
+                <button id="tab-grupo" onclick="trocarTipoConversa('grupo')"
+                        class="flex-1 py-2 text-sm font-medium rounded-lg text-gray-400 hover:text-white transition">
+                    Criar Grupo
+                </button>
+                <?php endif; ?>
+            </div>
+
+            <!-- Privada: seleciona usuário -->
+            <div id="form-privada">
+                <label class="block text-sm font-medium text-gray-300 mb-2">Selecione o usuário</label>
+                <div id="lista-usuarios-conversa" class="space-y-1 max-h-64 overflow-y-auto"></div>
+            </div>
+
+            <!-- Grupo: nome + participantes (admin) -->
+            <div id="form-grupo" class="hidden space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Nome do grupo</label>
+                    <input type="text" id="grupo-nome" placeholder="Ex: Projeto X"
+                           class="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Participantes</label>
+                    <div id="lista-usuarios-grupo" class="space-y-1 max-h-48 overflow-y-auto"></div>
+                </div>
+                <button onclick="criarGrupo()"
+                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-2.5 text-sm font-bold transition">
+                    Criar Grupo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

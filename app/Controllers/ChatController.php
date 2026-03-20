@@ -15,23 +15,30 @@ class ChatController
         $userId = $request->getAttribute('user_id');
         $pdo    = getDbConnection();
 
+        // Em conversas privadas o nome é o do outro usuário
         $stmt = $pdo->prepare("
             SELECT
                 c.id,
                 c.tipo,
-                c.nome,
-                -- pega o conteúdo da última mensagem
+                CASE
+                    WHEN c.tipo = 'privada' THEN (
+                        SELECT u.nome FROM usuarios u
+                        INNER JOIN participantes p2 ON p2.usuario_id = u.id
+                        WHERE p2.conversa_id = c.id AND u.id != ?
+                        LIMIT 1
+                    )
+                    ELSE c.nome
+                END AS nome,
                 (SELECT m.conteudo FROM mensagens m
                  WHERE m.conversa_id = c.id
                  ORDER BY m.criado_em DESC LIMIT 1) AS ultima_mensagem,
-                -- conta mensagens não lidas (por ora retorna 0, implementamos depois)
                 0 AS nao_lidas
             FROM conversas c
             INNER JOIN participantes p ON p.conversa_id = c.id
             WHERE p.usuario_id = ?
-            ORDER BY c.criado_em ASC
+            ORDER BY c.tipo ASC, c.criado_em ASC
         ");
-        $stmt->execute([$userId]);
+        $stmt->execute([$userId, $userId]);
         $conversas = $stmt->fetchAll();
 
         return Json::json($response, $conversas);
@@ -161,4 +168,123 @@ class ChatController
 
         return Json::json($response, $stmt->fetchAll());
     }
+
+    // POST /api/conversas
+    // Cria grupo (admin) ou conversa privada (qualquer usuário)
+    public function criarConversa(Request $request, Response $response): Response
+    {
+        $userId = $request->getAttribute('user_id');
+        $papel  = $request->getAttribute('user_papel');
+        $data   = (array) $request->getParsedBody();
+
+        $tipo = $data['tipo'] ?? 'privada';
+
+        // Só admin cria grupos
+        if ($tipo === 'grupo' && $papel !== 'admin') {
+            return Json::erro($response, 'Apenas administradores podem criar grupos', 403);
+        }
+
+        $pdo = getDbConnection();
+
+        // Conversa privada: verifica se já existe entre os dois usuários
+        if ($tipo === 'privada') {
+            $outroId = (int) ($data['usuario_id'] ?? 0);
+            if (!$outroId || $outroId === $userId) {
+                return Json::erro($response, 'Informe um usuário válido');
+            }
+
+            // Checa se já existe conversa privada entre eles
+            $check = $pdo->prepare("
+                SELECT c.id FROM conversas c
+                INNER JOIN participantes p1 ON p1.conversa_id = c.id AND p1.usuario_id = ?
+                INNER JOIN participantes p2 ON p2.conversa_id = c.id AND p2.usuario_id = ?
+                WHERE c.tipo = 'privada'
+                LIMIT 1
+            ");
+            $check->execute([$userId, $outroId]);
+            $existente = $check->fetch();
+
+            if ($existente) {
+                return Json::json($response, ['id' => $existente['id'], 'ja_existe' => true]);
+            }
+
+            // Cria conversa privada
+            $stmt = $pdo->prepare("INSERT INTO conversas (tipo, nome, criado_por) VALUES ('privada', NULL, ?)");
+            $stmt->execute([$userId]);
+            $conversaId = (int) $pdo->lastInsertId();
+
+            // Adiciona os dois participantes
+            $pdo->prepare("INSERT INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")
+                ->execute([$conversaId, $userId]);
+            $pdo->prepare("INSERT INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")
+                ->execute([$conversaId, $outroId]);
+
+            // Busca o nome do outro usuário para retornar
+            $outro = $pdo->prepare("SELECT nome FROM usuarios WHERE id = ?");
+            $outro->execute([$outroId]);
+            $nomeOutro = $outro->fetchColumn();
+
+            return Json::json($response, [
+                'id'        => $conversaId,
+                'tipo'      => 'privada',
+                'nome'      => $nomeOutro,
+                'ja_existe' => false,
+            ], 201);
+        }
+
+        // Grupo
+        $nome = trim($data['nome'] ?? '');
+        if (!$nome) {
+            return Json::erro($response, 'Nome do grupo é obrigatório');
+        }
+
+        $stmt = $pdo->prepare("INSERT INTO conversas (tipo, nome, criado_por) VALUES ('grupo', ?, ?)");
+        $stmt->execute([$nome, $userId]);
+        $conversaId = (int) $pdo->lastInsertId();
+
+        // Admin entra no grupo automaticamente
+        $pdo->prepare("INSERT INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")
+            ->execute([$conversaId, $userId]);
+
+        // Adiciona participantes iniciais se informados
+        $participantes = $data['participantes'] ?? '';
+        if ($participantes) {
+            $ids = array_filter(array_map('intval', explode(',', $participantes)));
+            foreach ($ids as $pid) {
+                if ($pid === $userId) continue;
+                $pdo->prepare("INSERT IGNORE INTO participantes (conversa_id, usuario_id) VALUES (?, ?)")
+                    ->execute([$conversaId, $pid]);
+            }
+        }
+
+        return Json::json($response, [
+            'id'   => $conversaId,
+            'tipo' => 'grupo',
+            'nome' => $nome,
+        ], 201);
+    }
+
+    // POST /api/conversas/{id}/participantes
+    public function adicionarParticipante(Request $request, Response $response, array $args): Response
+    {
+        $papel     = $request->getAttribute('user_papel');
+        $conversaId = (int) $args['id'];
+        $data      = (array) $request->getParsedBody();
+        $usuarioId = (int) ($data['usuario_id'] ?? 0);
+
+        if ($papel !== 'admin') {
+            return Json::erro($response, 'Apenas administradores podem adicionar participantes', 403);
+        }
+
+        if (!$usuarioId) {
+            return Json::erro($response, 'usuario_id é obrigatório');
+        }
+
+        $pdo  = getDbConnection();
+        $stmt = $pdo->prepare("INSERT IGNORE INTO participantes (conversa_id, usuario_id) VALUES (?, ?)");
+        $stmt->execute([$conversaId, $usuarioId]);
+
+        return Json::json($response, ['ok' => true]);
+    }
+
 }
