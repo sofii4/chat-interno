@@ -213,8 +213,7 @@
                         class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl py-2.5 text-sm font-medium transition">
                         Cancelar
                     </button>
-                    <button onclick="enviarChamado()"
-                        class="flex-1 bg-red-600 hover:bg-red-500 text-white rounded-xl py-2.5 text-sm font-bold transition">
+                    <button id="btn-enviar-chamado" onclick="enviarChamado()" class="flex-1 bg-red-600 hover:bg-red-500 text-white rounded-xl py-2.5 text-sm font-bold transition disabled:opacity-50 disabled:cursor-not-allowed">
                         Abrir Chamado de Emergência
                     </button>
                 </div>
@@ -504,10 +503,64 @@ function abrirEmergencia()  { document.getElementById('modal-emergencia').classL
 function fecharEmergencia() { document.getElementById('modal-emergencia').classList.add('hidden'); }
 
 async function enviarChamado() {
-    const titulo = document.getElementById('chamado-titulo').value.trim();
+    const titulo    = document.getElementById('chamado-titulo').value.trim();
+    const descricao = document.getElementById('chamado-descricao').value.trim();
+    const fileInput = document.querySelector('#modal-emergencia input[type=file]');
+
     if (!titulo) { alert('Informe o título do problema.'); return; }
-    alert('Chamado aberto! A equipe de TI foi notificada.');
-    fecharEmergencia();
+
+    const btnEnviar = document.getElementById('btn-enviar-chamado');
+    btnEnviar.disabled = true;
+    btnEnviar.textContent = 'Enviando...';
+
+    try {
+        const formData = new FormData();
+        formData.append('titulo',     titulo);
+        formData.append('descricao',  descricao);
+        formData.append('prioridade', prioridadeSelecionada);
+
+        if (fileInput && fileInput.files.length > 0) {
+            Array.from(fileInput.files).forEach(f => formData.append('anexos[]', f));
+        }
+
+        const res  = await fetch('/api/chamados', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.erro ?? 'Erro ao abrir chamado');
+
+        // Limpa o formulário
+        document.getElementById('chamado-titulo').value = '';
+        document.getElementById('chamado-descricao').value = '';
+        if (fileInput) fileInput.value = '';
+
+        fecharEmergencia();
+        mostrarSucesso(data.chamado);
+
+    } catch (err) {
+        alert('Erro: ' + err.message);
+    } finally {
+        btnEnviar.disabled = false;
+        btnEnviar.textContent = 'Abrir Chamado de Emergência';
+    }
+}
+
+function mostrarSucesso(chamado) {
+    const prioridades = { baixa:'🟢', media:'🟡', alta:'🟠', critica:'🔴' };
+    const icone = prioridades[chamado.prioridade] ?? '🔴';
+
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-6 right-6 bg-gray-800 border border-green-500/30 text-white rounded-2xl p-4 shadow-2xl z-50 max-w-sm';
+    toast.innerHTML = `
+        <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center shrink-0 text-sm">✓</div>
+            <div>
+                <p class="font-semibold text-green-400 text-sm">Chamado aberto!</p>
+                <p class="text-gray-300 text-xs mt-0.5">${icone} ${chamado.titulo}</p>
+                <p class="text-gray-500 text-xs mt-1">A equipe de TI foi notificada. #${chamado.id}</p>
+            </div>
+        </div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 8000);
 }
 </script>
 

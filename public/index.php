@@ -13,6 +13,7 @@ session_start();
 use Slim\Factory\AppFactory;
 use App\Controllers\AuthController;
 use App\Controllers\ChatController;
+use App\Controllers\ChamadoController;
 use App\Middleware\AuthMiddleware;
 
 $app = AppFactory::create();
@@ -42,6 +43,11 @@ $app->group('/api', function ($group) {
     $group->get('/mensagens',        [ChatController::class, 'listarMensagens']);
     $group->post('/mensagens',       [ChatController::class, 'enviarMensagem']);
     $group->get('/usuarios/online',  [ChatController::class, 'listarUsuarios']);
+
+    // Chamados
+    $group->post('/chamados',              [ChamadoController::class, 'criar']);
+    $group->get('/chamados',               [ChamadoController::class, 'listar']);
+    $group->patch('/chamados/{id}/status', [ChamadoController::class, 'atualizarStatus']);
 })->add(new AuthMiddleware());
 
 $app->get('/', function ($request, $response) {
