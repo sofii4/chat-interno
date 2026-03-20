@@ -11,10 +11,7 @@ ini_set('session.cookie_httponly', '1');
 session_start();
 
 use Slim\Factory\AppFactory;
-use App\Controllers\AuthController;
-use App\Controllers\ChatController;
-use App\Controllers\ChamadoController;
-use App\Controllers\AdminController;
+use App\Container\ContainerIoC;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\AdminMiddleware;
 
@@ -24,9 +21,9 @@ $app->addRoutingMiddleware();
 $app->addErrorMiddleware($_ENV['APP_ENV'] === 'development', true, true);
 
 // ── Rotas públicas ────────────────────────────
-$app->get('/login',  [AuthController::class, 'exibirLogin']);
-$app->post('/login', [AuthController::class, 'processarLogin']);
-$app->get('/logout', [AuthController::class, 'logout']);
+$app->get('/login',  [ContainerIoC::get('AuthController'), 'exibirLogin']);
+$app->post('/login', [ContainerIoC::get('AuthController'), 'processarLogin']);
+$app->get('/logout', [ContainerIoC::get('AuthController'), 'logout']);
 
 // ── Rotas protegidas — Frontend ───────────────
 $app->get('/admin', function ($request, $response) {
@@ -51,35 +48,39 @@ $app->get('/chat', function ($request, $response) {
 
 // ── Rotas protegidas — API JSON ───────────────
 $app->group('/api', function ($group) {
-    $group->get('/conversas',        [ChatController::class, 'listarConversas']);
-    $group->get('/mensagens',        [ChatController::class, 'listarMensagens']);
-    $group->post('/mensagens',       [ChatController::class, 'enviarMensagem']);
-    $group->get('/usuarios/online',  [ChatController::class, 'listarUsuarios']);
+    $chatController = ContainerIoC::get('ChatController');
+    $adminController = ContainerIoC::get('AdminController');
+    $chamadoController = ContainerIoC::get('ChamadoController');
+
+    $group->get('/conversas',        [$chatController, 'listarConversas']);
+    $group->get('/mensagens',        [$chatController, 'listarMensagens']);
+    $group->post('/mensagens',       [$chatController, 'enviarMensagem']);
+    $group->get('/usuarios/online',  [$chatController, 'listarUsuarios']);
 
     // Conversas
-    $group->post('/conversas',                              [ChatController::class, 'criarConversa']);
-    $group->patch('/conversas/{id}',                        [ChatController::class, 'editarConversa']);
-    $group->delete('/conversas/{id}',                       [ChatController::class, 'deletarConversa']);
-    $group->post('/conversas/{id}/lida',                    [ChatController::class, 'marcarComoLida']);
-    $group->get('/conversas/{id}/participantes',            [ChatController::class, 'listarParticipantes']);
-    $group->post('/conversas/{id}/participantes',           [ChatController::class, 'adicionarParticipante']);
-    $group->delete('/conversas/{id}/participantes/{uid}',   [ChatController::class, 'removerParticipante']);
+    $group->post('/conversas',                              [$chatController, 'criarConversa']);
+    $group->patch('/conversas/{id}',                        [$chatController, 'editarConversa']);
+    $group->delete('/conversas/{id}',                       [$chatController, 'deletarConversa']);
+    $group->post('/conversas/{id}/lida',                    [$chatController, 'marcarComoLida']);
+    $group->get('/conversas/{id}/participantes',            [$chatController, 'listarParticipantes']);
+    $group->post('/conversas/{id}/participantes',           [$chatController, 'adicionarParticipante']);
+    $group->delete('/conversas/{id}/participantes/{uid}',   [$chatController, 'removerParticipante']);
 
     // Chamados
-    $group->post('/chamados',              [ChamadoController::class, 'criar']);
-    $group->get('/chamados',               [ChamadoController::class, 'listar']);
-    $group->patch('/chamados/{id}/status', [ChamadoController::class, 'atualizarStatus']);
+    $group->post('/chamados',              [$chamadoController, 'criar']);
+    $group->get('/chamados',               [$chamadoController, 'listar']);
+    $group->patch('/chamados/{id}/status', [$chamadoController, 'atualizarStatus']);
 
     // Admin — usuários
-    $group->get('/admin/usuarios',         [AdminController::class, 'listarUsuarios']);
-    $group->post('/admin/usuarios',        [AdminController::class, 'criarUsuario']);
-    $group->patch('/admin/usuarios/{id}',  [AdminController::class, 'atualizarUsuario']);
-    $group->delete('/admin/usuarios/{id}', [AdminController::class, 'desativarUsuario']);
+    $group->get('/admin/usuarios',         [$adminController, 'listarUsuarios']);
+    $group->post('/admin/usuarios',        [$adminController, 'criarUsuario']);
+    $group->patch('/admin/usuarios/{id}',  [$adminController, 'atualizarUsuario']);
+    $group->delete('/admin/usuarios/{id}', [$adminController, 'desativarUsuario']);
 
     // Admin — setores
-    $group->get('/admin/setores',          [AdminController::class, 'listarSetores']);
-    $group->post('/admin/setores',         [AdminController::class, 'criarSetor']);
-    $group->delete('/admin/setores/{id}',  [AdminController::class, 'deletarSetor']);
+    $group->get('/admin/setores',          [$adminController, 'listarSetores']);
+    $group->post('/admin/setores',         [$adminController, 'criarSetor']);
+    $group->delete('/admin/setores/{id}',  [$adminController, 'deletarSetor']);
 })->add(new AuthMiddleware());
 
 $app->get('/', function ($request, $response) {
