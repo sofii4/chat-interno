@@ -21,7 +21,7 @@ Sistema interno de comunicação empresarial com chat em tempo real e chamados d
 
 | Camada | Tecnologia | Função |
 |---|---|---|
-| Backend | PHP 8.3 | Linguagem principal |
+| Backend | PHP 8.1 | Linguagem principal |
 | Framework | Slim 4 | Roteamento HTTP (micro-framework) |
 | Tempo real | Ratchet | Servidor WebSocket (porta 8080) |
 | Banco | MySQL 8 | Persistência de dados |
