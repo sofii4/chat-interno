@@ -11,8 +11,6 @@ Sistema interno de comunicação empresarial com chat em tempo real e chamados d
 - [Banco de Dados](#banco-de-dados)
 - [APIs REST](#apis-rest)
 - [WebSocket](#websocket)
-- [Papéis de Usuário](#papéis-de-usuário)
-- [Segurança](#segurança)
 - [Como Rodar](#como-rodar)
 
 ---
@@ -164,58 +162,6 @@ php bin/chat-server.php
 **Reconexão automática:** o cliente tenta reconectar a cada 3 segundos se a conexão cair.
 
 **Fallback HTTP:** se o WebSocket estiver offline, o envio de mensagens cai automaticamente para `POST /api/mensagens` via Fetch API.
-
----
-
-## Papéis de Usuário
-
-O sistema possui três papéis definidos na coluna `usuarios.papel`.
-
-### `admin`
-
-- Acesso total ao sistema
-- Acessa o painel administrativo em `/admin`
-- Cria, edita, desativa e reativa usuários
-- Cria e deleta setores
-- Cria e deleta grupos de conversa
-- Adiciona participantes a grupos
-- Abre chamados de emergência
-- Vê todos os chamados no sistema
-- Ícone de engrenagem ⚙️ visível na sidebar do chat
-
-### `ti`
-
-- Acessa o chat (grupos que participa + conversas privadas)
-- Abre chamados de emergência
-- Vê e atualiza o status de todos os chamados abertos
-- Não acessa o painel admin
-- Não cria ou deleta grupos
-
-### `usuario`
-
-- Acessa o chat (grupos que participa + conversas privadas)
-- Inicia conversas privadas com qualquer usuário ativo
-- Abre chamados de emergência
-- Vê apenas seus próprios chamados
-- Não acessa o painel admin
-- Não cria grupos
-
----
-
-## Segurança
-
-| Medida | Implementação |
-|---|---|
-| Senhas | `password_hash()` bcrypt com cost 12 |
-| SQL Injection | PDO com prepared statements em todas as queries |
-| Session Fixation | `session_regenerate_id(true)` no login |
-| Cookie seguro | `session.cookie_httponly = 1` |
-| Uploads | Validação de MIME type pelo conteúdo real do arquivo (não pela extensão) |
-| Execução de scripts | `.htaccess` em `/public/uploads/` bloqueia execução de PHP |
-| Credenciais | Isoladas no `.env` (nunca commitado no Git) |
-| Autorização WS | Servidor verifica se usuário é participante antes de aceitar mensagem |
-| XSS | Escape de HTML via `htmlspecialchars()` no backend e `textContent` no JS |
-| Autorização de rotas | `AuthMiddleware` em todas as rotas protegidas; `AdminMiddleware` nas rotas admin |
 
 ---
 
