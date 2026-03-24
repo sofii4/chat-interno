@@ -49,6 +49,22 @@ $app->get('/chat', function ($request, $response) {
     return $response;
 })->add(new AuthMiddleware());
 
+$app->get('/dashboard-ti', function ($request, $response) {
+    $userName  = $request->getAttribute('user_nome');
+    $userPapel = $request->getAttribute('user_papel');
+    
+    // Se não for TI ou Admin, redireciona pro chat
+    if (!in_array($userPapel, ['ti', 'admin'])) {
+        return $response->withHeader('Location', '/chat')->withStatus(302);
+    }
+
+    ob_start();
+    include __DIR__ . '/../templates/dashboard_ti.php';
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
+})->add(new AuthMiddleware());
+
 // ── Rotas protegidas — API JSON ───────────────
 $app->group('/api', function ($group) {
     $group->get('/conversas',        [ChatController::class, 'listarConversas']);
@@ -69,6 +85,8 @@ $app->group('/api', function ($group) {
     $group->post('/chamados',              [ChamadoController::class, 'criar']);
     $group->get('/chamados',               [ChamadoController::class, 'listar']);
     $group->patch('/chamados/{id}/status', [ChamadoController::class, 'atualizarStatus']);
+    $group->patch('/chamados/{id}/classificar', [ChamadoController::class, 'classificar']);
+    $group->patch('/chamados/{id}/finalizar', [ChamadoController::class, 'finalizar']);
 
     // Admin — usuários
     $group->get('/admin/usuarios',         [AdminController::class, 'listarUsuarios']);

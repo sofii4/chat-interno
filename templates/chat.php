@@ -67,6 +67,18 @@
         </button>
     </div>
 
+    <?php if (in_array($userPapel, ['ti', 'admin'])): ?>
+    <div class="p-3 pt-0">
+        <button onclick="window.location.href='/dashboard-ti'"
+                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl py-2.5 px-4 flex items-center justify-center gap-2 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" />
+            </svg>
+            Painel de Chamados
+        </button>
+    </div>
+    <?php endif; ?>
+
     <div class="p-3 flex items-center gap-2">
         <div class="relative flex-1">
             <svg class="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -289,10 +301,70 @@
     </div>
 </div>
 
+<div id="modal-classificar" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div class="p-6 border-b border-gray-800">
+            <h3 class="text-xl font-bold text-white">Classificar Chamado</h3>
+            <p id="classificar-titulo-orig" class="text-sm text-gray-400 mt-1"></p>
+        </div>
+        
+        <form id="form-classificar" class="p-6 space-y-4">
+            <input type="hidden" id="classificar-id">
+            
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">Prioridade</label>
+                <select id="sel-prioridade" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white">
+                    <option value="baixa">Baixa</option>
+                    <option value="media" selected>Média</option>
+                    <option value="alta">Alta</option>
+                    <option value="critica">Crítica</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">Categoria</label>
+                    <select id="sel-categoria" onchange="atualizarSubcategorias()" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white">
+                        <option value="">Selecione...</option>
+                        </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">Subcategoria</label>
+                    <select id="sel-subcategoria" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white">
+                        <option value="">Selecione a categoria primeiro</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="fecharModalClassificar()" class="flex-1 px-4 py-2 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition">Cancelar</button>
+                <button type="submit" class="flex-1 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition">Salvar Classificação</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 const CURRENT_USER_ID   = <?= (int) $userId ?>;
 const CURRENT_USER_NAME = "<?= addslashes(htmlspecialchars($userName)) ?>";
 const IS_ADMIN          = <?= $userPapel === 'admin' ? 'true' : 'false' ?>;
+const CONFIG_CHAMADOS = {
+    categorias: {
+        "ERP": ["Financeiro", "Fiscal", "Contabilidade", "Vendas"],
+        "Engenharia": ["AutoCAD", "Solidworks", "Revisão de Projeto"],
+        "Infraestrutura": ["Servidor", "Backup", "Cloud", "Banco de Dados"],
+        "Redes": ["Wi-Fi", "Cabeamento", "VPN"],
+        "Segurança": ["Antivírus", "Firewall", "Câmeras"],
+        "Hardware": ["Desktop/Notebook", "Impressora", "Periféricos"],
+        "Acessos": ["Reset de Senha", "Novo Usuário", "Permissões"]
+    },
+    prioridades: {
+        "critica": { label: "Crítica", color: "bg-red-500", border: "border-red-500" },
+        "alta":    { label: "Alta",    color: "bg-orange-500", border: "border-orange-500" },
+        "media":   { label: "Média",   color: "bg-yellow-500", border: "border-yellow-500" },
+        "baixa":   { label: "Baixa",   color: "bg-blue-500", border: "border-blue-500" }
+    }
+};
 let conversaAtualId   = null;
 let conversaAtualNome = null;
 let ws                = null;
@@ -348,9 +420,10 @@ function conectarWS() {
 }
 
 // ── Inicialização ─────────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     conectarWS();
-    carregarConversas();
+    await carregarConversas();
+    await abrirConversaViaUrl();
     carregarUsuarios();
     document.getElementById('modal-emergencia').addEventListener('click', function(e) {
         if (e.target === this) fecharEmergencia();
@@ -460,19 +533,37 @@ async function carregarUsuarios() {
 }
 
 // ── Selecionar conversa ───────────────────────
-function selecionarConversa(id, nome, el) {
+function selecionarConversa(id, nome, el = null) {
     conversaAtualId   = id;
     conversaAtualNome = nome;
+    
     document.querySelectorAll('.conversa-item').forEach(function(b) { b.classList.remove('bg-gray-800'); });
+    
+    // Agora ele só tenta pintar o elemento se ele existir
+    if (el) {
+        el.classList.add('bg-gray-800');
+    } else {
+        // Se viemos pela URL, tenta achar o elemento pelo ID na lista de chats
+        const itemLista = document.querySelector(`.conversa-item[data-id="${id}"]`);
+        if (itemLista) itemLista.classList.add('bg-gray-800');
+    }
+
     limparBadge(id);
-    el.classList.add('bg-gray-800');
-    document.getElementById('chat-nome').textContent = '#' + nome;
-    document.getElementById('msg-input').placeholder = 'Mensagem para #' + nome + '...';
-    document.getElementById('typing-indicator').classList.add('hidden');
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    
+    const chatNomeEl = document.getElementById('chat-nome');
+    if (chatNomeEl) chatNomeEl.textContent = '#' + nome;
+    
+    const msgInputEl = document.getElementById('msg-input');
+    if (msgInputEl) msgInputEl.placeholder = 'Mensagem para #' + nome + '...';
+    
+    const typingEl = document.getElementById('typing-indicator');
+    if (typingEl) typingEl.classList.add('hidden');
+    
+    if (typeof ws !== 'undefined' && ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'join', conversa_id: id }));
     }
-    fetch('/api/conversas/' + id + '/lida', { method: 'POST' });
+    
+    fetch('/api/conversas/' + id + '/lida', { method: 'POST' }).catch(e => console.log(e));
     carregarMensagens(id);
 }
 
@@ -579,7 +670,7 @@ async function enviarChamado() {
         formData.append('titulo', titulo);
         formData.append('descricao', descricao);
         if (fileInput && fileInput.files.length > 0) {
-            Array.from(fileInput.files).forEach(function(f) { formData.append('anexos[]', f); });
+            Array.from(fileInput.files).forEach(function(f) { formData.append('anexos', f); });
         }
 
         const res  = await fetch('/api/chamados', { method: 'POST', body: formData });
@@ -600,6 +691,13 @@ async function enviarChamado() {
             + '<p class="text-gray-500 text-xs mt-1">A equipe de TI foi notificada. #' + data.chamado.id + '</p></div></div>';
         document.body.appendChild(toast);
         setTimeout(function() { toast.remove(); }, 8000);
+
+        if (Array.isArray(data.anexo_erros) && data.anexo_erros.length > 0) {
+            const detalhes = data.anexo_erros.map(function(item) {
+                return '- ' + (item.arquivo || 'arquivo') + ': ' + (item.erro || 'erro desconhecido');
+            }).join('\n');
+            alert('Chamado aberto, mas alguns anexos falharam:\n' + detalhes);
+        }
 
     } catch (err) {
         alert('Erro: ' + err.message);
@@ -685,6 +783,41 @@ async function iniciarConversaPrivada(usuarioId, usuarioNome) {
     await carregarConversas();
     const btn = document.querySelector('.conversa-item[data-id="' + data.id + '"]');
     if (btn) selecionarConversa(data.id, usuarioNome, btn);
+}
+
+async function abrirConversaViaUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const usuarioAlvoId = parseInt(urlParams.get('conversa_com') || '0', 10);
+
+    if (!usuarioAlvoId) return;
+
+    try {
+        const res = await fetch('/api/conversas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'tipo=privada&usuario_id=' + encodeURIComponent(usuarioAlvoId)
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            console.error('Nao foi possivel iniciar conversa privada:', data.erro || data);
+            return;
+        }
+
+        await carregarConversas();
+
+        const btn = document.querySelector('.conversa-item[data-id="' + data.id + '"]');
+        const nomeConversa = data.nome || (btn ? btn.dataset.nome : 'Conversa');
+        if (btn) {
+            selecionarConversa(data.id, nomeConversa, btn);
+        } else {
+            selecionarConversa(data.id, nomeConversa);
+        }
+
+        window.history.replaceState({}, document.title, '/chat');
+    } catch (err) {
+        console.error('Erro ao abrir conversa via URL:', err);
+    }
 }
 
 async function criarGrupo() {
@@ -801,6 +934,63 @@ async function confirmarExcluirGrupo() {
         carregarConversas();
     }
 }
+
+// Preenche o select de categorias ao carregar a página
+function popularCategorias() {
+    const sel = document.getElementById('sel-categoria');
+    Object.keys(CONFIG_CHAMADOS.categorias).forEach(cat => {
+        sel.innerHTML += `<option value="${cat}">${cat}</option>`;
+    });
+}
+
+// Muda as subcategorias baseado na categoria escolhida
+function atualizarSubcategorias() {
+    const categoria = document.getElementById('sel-categoria').value;
+    const selSub = document.getElementById('sel-subcategoria');
+    
+    selSub.innerHTML = '<option value="">Selecione...</option>';
+    
+    if (categoria && CONFIG_CHAMADOS.categorias[categoria]) {
+        CONFIG_CHAMADOS.categorias[categoria].forEach(sub => {
+            selSub.innerHTML += `<option value="${sub}">${sub}</option>`;
+        });
+    }
+}
+
+// Envia a classificação para a API que criamos no Passo 3
+document.getElementById('form-classificar').onsubmit = async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('classificar-id').value;
+    const payload = {
+        prioridade: document.getElementById('sel-prioridade').value,
+        categoria: document.getElementById('sel-categoria').value,
+        subcategoria: document.getElementById('sel-subcategoria').value
+    };
+
+    try {
+        const response = await fetch(`/api/chamados/${id}/classificar`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert("Chamado classificado e movido para documentação!");
+            fecharModalClassificar();
+            carregarChamados(); // Função que atualiza a lista na tela
+        }
+    } catch (error) {
+        console.error("Erro ao classificar:", error);
+    }
+};
+
+function fecharModalClassificar() {
+    document.getElementById('modal-classificar').classList.add('hidden');
+}
+
+// Inicializa as categorias
+popularCategorias();
+
 </script>
 
 </body>

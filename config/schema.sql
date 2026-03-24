@@ -85,3 +85,12 @@ VALUES ('Administrador', 'admin@empresa.com',
 -- senha do admin acima é: password
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+ALTER TABLE chamados 
+ADD COLUMN categoria VARCHAR(50) NULL AFTER titulo,
+ADD COLUMN subcategoria VARCHAR(50) NULL AFTER categoria;
+
+-- Atualizando os status para incluir a lógica de fluxo
+ALTER TABLE chamados 
+MODIFY COLUMN status ENUM('aberto', 'classificado', 'em_andamento', 'resolvido', 'cancelado') 
+NOT NULL DEFAULT 'aberto';
