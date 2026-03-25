@@ -69,12 +69,13 @@
 
     <?php if (in_array($userPapel, ['ti', 'admin'])): ?>
     <div class="p-3 pt-0">
-        <button onclick="window.location.href='/dashboard-ti'"
-                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl py-2.5 px-4 flex items-center justify-center gap-2 transition-colors">
+        <button id="btn-painel-chamados" onclick="window.location.href='/dashboard-ti'"
+                class="relative w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl py-2.5 px-4 flex items-center justify-center gap-2 transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" />
             </svg>
             Painel de Chamados
+            <span id="badge-novos-chamados" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-gray-900"></span>
         </button>
     </div>
     <?php endif; ?>
@@ -84,7 +85,7 @@
             <svg class="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
             </svg>
-            <input type="text" placeholder="Buscar..."
+                 <input id="search-input" type="text" placeholder="Buscar..."
                    class="w-full bg-gray-800 border border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
         <button onclick="abrirModalNovaConversa()" title="Nova conversa"
@@ -98,7 +99,7 @@
     <nav class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 pt-3 pb-2">Conversas</p>
         <div id="lista-conversas" class="space-y-0.5"></div>
-        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 pt-4 pb-2">Usuários Online</p>
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 pt-4 pb-2">Usuários</p>
         <div id="lista-usuarios" class="space-y-0.5"></div>
     </nav>
 </aside>
@@ -114,7 +115,16 @@
                 <p class="text-xs text-gray-400">Chat Interno</p>
             </div>
         </div>
+        <button id="btn-info-grupo" onclick="abrirModalInfoGrupo()" class="hidden px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">
+            Informações do Grupo
+        </button>
     </header>
+
+    <div class="px-6 pt-3">
+        <button id="btn-carregar-mais" onclick="carregarMaisMensagens()" class="hidden w-full bg-gray-900 border border-gray-800 hover:border-indigo-500 text-xs text-gray-300 rounded-xl py-2 transition">
+            Carregar mensagens anteriores
+        </button>
+    </div>
 
     <div id="messages" class="flex-1 overflow-y-auto p-6 space-y-4">
         <p class="text-center text-gray-600 text-xs py-8">Selecione uma conversa para começar</p>
@@ -124,17 +134,23 @@
 
     <div class="p-4 bg-gray-900 border-t border-gray-800 shrink-0">
         <div class="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-indigo-500 transition">
-            <button class="text-gray-400 hover:text-indigo-400 transition shrink-0 mb-0.5">
+            <button onclick="document.getElementById('msg-file-input').click()" class="text-gray-400 hover:text-indigo-400 transition shrink-0 mb-0.5">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                 </svg>
             </button>
+            <input id="msg-file-input" type="file" class="hidden" accept="image/*,.pdf,.doc,.docx" onchange="atualizarPreviewAnexoMensagem()">
             <textarea id="msg-input" rows="1"
                       placeholder="Selecione uma conversa..."
                       class="flex-1 bg-transparent text-sm text-white placeholder-gray-500 resize-none focus:outline-none max-h-32"
                       onkeydown="handleEnter(event)"
                       oninput="autoResize(this)"></textarea>
+            <button onclick="toggleEmojiPicker()" class="text-gray-400 hover:text-amber-300 transition shrink-0 mb-0.5" title="Emojis">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </button>
             <button onclick="enviarMensagem()"
                     class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl p-2 transition shrink-0 mb-0.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,6 +159,10 @@
                 </svg>
             </button>
         </div>
+        <div id="emoji-picker" class="hidden mt-2 ml-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-sm">
+            <div id="emoji-picker-grid" class="max-h-40 overflow-y-auto pr-1 grid grid-cols-10 gap-1"></div>
+        </div>
+        <div id="msg-file-preview" class="hidden mt-2 ml-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-xs text-gray-300"></div>
         <p class="text-xs text-gray-600 mt-2 ml-1">Enter para enviar · Shift+Enter para nova linha</p>
     </div>
 </main>
@@ -188,8 +208,8 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                    <span class="text-sm text-gray-400">Clique para selecionar arquivos</span>
-                    <input type="file" multiple class="hidden" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+                    <span id="label-anexo-chamado" class="text-sm text-gray-400">Clique para selecionar arquivos</span>
+                    <input id="input-anexo-chamado" type="file" multiple class="hidden" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
                 </label>
             </div>
         </div>
@@ -301,6 +321,43 @@
     </div>
 </div>
 
+<div id="modal-info-grupo" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-gray-800">
+            <h3 class="font-bold text-white">Informações do Grupo</h3>
+            <button onclick="fecharModalInfoGrupo()" class="text-gray-500 hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <p id="info-grupo-nome" class="text-sm font-semibold text-white"></p>
+                <p id="info-grupo-meta" class="text-xs text-gray-400 mt-1"></p>
+            </div>
+
+            <div>
+                <p class="text-xs font-semibold uppercase text-gray-500 mb-2">Descrição</p>
+                <p id="info-grupo-descricao" class="text-sm text-gray-300 bg-gray-800 border border-gray-700 rounded-xl p-3"></p>
+            </div>
+
+            <?php if ($userPapel === 'admin'): ?>
+            <div>
+                <p class="text-xs font-semibold uppercase text-gray-500 mb-2">Editar Descrição</p>
+                <textarea id="info-grupo-descricao-input" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white"></textarea>
+                <button onclick="salvarDescricaoGrupo()" class="mt-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl px-4 py-2 transition">Salvar descrição</button>
+            </div>
+            <?php endif; ?>
+
+            <div>
+                <p class="text-xs font-semibold uppercase text-gray-500 mb-2">Participantes</p>
+                <div id="info-grupo-participantes" class="space-y-2 max-h-56 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="modal-classificar" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
     <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg shadow-2xl">
         <div class="p-6 border-b border-gray-800">
@@ -371,6 +428,17 @@ let ws                = null;
 let typingTimer       = null;
 let grupoEditandoId   = null;
 let grupoEditandoNome = null;
+let ultimoTotalNaoLidas = 0;
+let notificacoesInicializadas = false;
+let conversaAtualTipo = null;
+let paginaMensagensAtual = 1;
+let podeCarregarMaisMensagens = false;
+const EMOJIS_POPULARES = [
+    '😀','😁','😂','🤣','😊','😉','😍','😘','😎','🤔','😢','😭','😡','🥳','😴','🤯',
+    '👍','👎','👏','🙌','🙏','💪','🤝','👌','🤌','✌️','🤞','👀','💡','✅','❌','⚠️',
+    '🎉','🔥','⭐','💯','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','💬','📌',
+    '📎','📢','📅','⏰','🛠️','💻','🖨️','📱','🌐','🔒','🔓','📈','📉','🚀','🎯','🧠'
+];
 
 // ── WebSocket ─────────────────────────────────
 function conectarWS() {
@@ -394,16 +462,34 @@ function conectarWS() {
                 console.log('Autenticado no WS como userId:', data.userId);
                 break;
             case 'new_message':
+                if (!data.message || !data.message.id) break;
+                if (document.querySelector('[data-msg-id="' + data.message.id + '"]')) break;
+
                 if (data.message.conversa_id == conversaAtualId) {
                     renderizarMensagem(data.message);
                     document.getElementById('messages').scrollTop = 99999;
                     fetch('/api/conversas/' + conversaAtualId + '/lida', { method: 'POST' });
+                } else {
+                    notificarMensagem('Nova mensagem de ' + (data.message.usuario_nome || 'Contato'), (data.message.conteudo || 'Nova mensagem').substring(0, 100));
                 }
                 atualizarPreviewSidebar(data.message);
+                break;
+            case 'message_deleted':
+                if (data.message_id) {
+                    aplicarMensagemApagadaNoDom(data.message_id);
+                }
+                if (data.conversa_id) {
+                    atualizarPreviewSidebar({ conversa_id: data.conversa_id, conteudo: 'Mensagem apagada' });
+                }
                 break;
             case 'typing':
                 if (data.conversa_id == conversaAtualId) {
                     mostrarTyping(data.user_nome);
+                }
+                break;
+            case 'action_error':
+                if (data.action === 'delete_message') {
+                    alert(data.message || 'Erro ao apagar mensagem');
                 }
                 break;
         }
@@ -421,10 +507,21 @@ function conectarWS() {
 
 // ── Inicialização ─────────────────────────────
 document.addEventListener('DOMContentLoaded', async function() {
+    popularEmojiPicker();
     conectarWS();
     await carregarConversas();
     await abrirConversaViaUrl();
     carregarUsuarios();
+    configurarBusca();
+    configurarNotificacoes();
+    configurarAnexoChamado();
+    atualizarBadgePainelChamados();
+    setInterval(atualizarBadgePainelChamados, 5000);
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            atualizarBadgePainelChamados();
+        }
+    });
     document.getElementById('modal-emergencia').addEventListener('click', function(e) {
         if (e.target === this) fecharEmergencia();
     });
@@ -434,6 +531,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('modal-editar-grupo').addEventListener('click', function(e) {
         if (e.target === this) fecharModalEditarGrupo();
     });
+    document.addEventListener('click', function(e) {
+        const picker = document.getElementById('emoji-picker');
+        if (!picker || picker.classList.contains('hidden')) return;
+        if (e.target.closest('#emoji-picker') || e.target.closest('[title="Emojis"]')) return;
+        picker.classList.add('hidden');
+    });
 });
 
 // ── Conversas (sidebar) ───────────────────────
@@ -441,7 +544,15 @@ async function carregarConversas() {
     const res   = await fetch('/api/conversas');
     const lista = await res.json();
     const nav   = document.getElementById('lista-conversas');
+    const conversaSelecionadaAntes = conversaAtualId;
+
+    conversaAtualId = null;
+    conversaAtualNome = null;
+    conversaAtualTipo = null;
+
     nav.innerHTML = '';
+
+    let itemSelecionado = null;
 
     lista.forEach(function(c) {
         const isGrupo = c.tipo === 'grupo' || c.tipo === 'setor';
@@ -462,7 +573,7 @@ async function carregarConversas() {
                     + '</svg></button>';
         }
 
-        wrapper.innerHTML = '<button class="conversa-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left" data-id="' + c.id + '" data-nome="' + c.nome + '">'
+        wrapper.innerHTML = '<button class="conversa-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left" data-id="' + c.id + '" data-nome="' + c.nome + '" data-tipo="' + c.tipo + '">'
             + '<div class="w-9 h-9 ' + cor + ' rounded-xl flex items-center justify-center shrink-0 text-sm font-bold">' + icone + '</div>'
             + '<div class="flex-1 min-w-0">'
             + '<p class="text-sm font-medium text-white truncate">' + c.nome + '</p>'
@@ -473,11 +584,22 @@ async function carregarConversas() {
             + editBtn;
 
         const btn = wrapper.querySelector('.conversa-item');
+        if (conversaSelecionadaAntes && c.id === conversaSelecionadaAntes) {
+            itemSelecionado = btn;
+        }
         btn.addEventListener('click', function() { selecionarConversa(c.id, c.nome, btn); });
         nav.appendChild(wrapper);
     });
 
-    if (lista.length > 0) {
+    if (itemSelecionado) {
+        const id = parseInt(itemSelecionado.dataset.id || '0', 10);
+        if (id) {
+            conversaAtualId = id;
+            conversaAtualNome = itemSelecionado.dataset.nome || conversaAtualNome;
+            conversaAtualTipo = itemSelecionado.dataset.tipo || conversaAtualTipo;
+            itemSelecionado.classList.add('bg-gray-800');
+        }
+    } else if (lista.length > 0) {
         const primeiro = nav.querySelector('.conversa-item');
         selecionarConversa(lista[0].id, lista[0].nome, primeiro);
     }
@@ -486,10 +608,13 @@ async function carregarConversas() {
 function atualizarPreviewSidebar(msg) {
     const cId = msg.conversa_id || conversaAtualId;
     const btn = document.querySelector('.conversa-item[data-id="' + cId + '"]');
-    if (!btn) return;
+    if (!btn) {
+        carregarConversas().catch(function() {});
+        return;
+    }
 
     const preview = btn.querySelector('.preview-msg');
-    if (preview) preview.textContent = msg.conteudo.substring(0, 40);
+    if (preview) preview.textContent = (msg.conteudo || 'Mensagem apagada').substring(0, 40);
 
     if (cId != conversaAtualId) {
         const badge = btn.querySelector('.badge-nao-lidas');
@@ -523,11 +648,17 @@ async function carregarUsuarios() {
     const cores = ['bg-pink-700', 'bg-emerald-700', 'bg-amber-700', 'bg-purple-700'];
     lista.forEach(function(u) {
         const cor = cores[u.id % cores.length];
+        const isOnline = !!parseInt(u.online || 0, 10);
+        const statusTexto = isOnline ? 'Online' : 'Offline';
+        const statusCor = isOnline ? 'text-green-400' : 'text-gray-500';
+        const dotCor = isOnline ? 'bg-green-400' : 'bg-gray-500';
+
         const btn = document.createElement('button');
         btn.className = 'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition text-left';
         btn.innerHTML = '<div class="w-9 h-9 ' + cor + ' rounded-xl flex items-center justify-center text-sm font-bold shrink-0">' + u.nome.charAt(0).toUpperCase() + '</div>'
             + '<div class="flex-1 min-w-0"><p class="text-sm font-medium text-white truncate">' + u.nome + '</p>'
-            + '<p class="text-xs text-gray-400 truncate">' + (u.setor || u.papel) + '</p></div>';
+            + '<p class="text-xs text-gray-400 truncate">' + (u.setor || u.papel) + '</p>'
+            + '<p class="text-xs ' + statusCor + ' truncate flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full ' + dotCor + '"></span>' + statusTexto + '</p></div>';
         nav.appendChild(btn);
     });
 }
@@ -536,6 +667,7 @@ async function carregarUsuarios() {
 function selecionarConversa(id, nome, el = null) {
     conversaAtualId   = id;
     conversaAtualNome = nome;
+    conversaAtualTipo = el ? el.dataset.tipo : (document.querySelector('.conversa-item[data-id="' + id + '"]')?.dataset.tipo || null);
     
     document.querySelectorAll('.conversa-item').forEach(function(b) { b.classList.remove('bg-gray-800'); });
     
@@ -565,14 +697,23 @@ function selecionarConversa(id, nome, el = null) {
     
     fetch('/api/conversas/' + id + '/lida', { method: 'POST' }).catch(e => console.log(e));
     carregarMensagens(id);
+
+    const btnInfo = document.getElementById('btn-info-grupo');
+    if (btnInfo) {
+        const mostrar = conversaAtualTipo === 'grupo' || conversaAtualTipo === 'setor';
+        btnInfo.classList.toggle('hidden', !mostrar);
+    }
 }
 
 // ── Histórico ─────────────────────────────────
 async function carregarMensagens(conversaId) {
+    paginaMensagensAtual = 1;
     const box = document.getElementById('messages');
     box.innerHTML = '<p class="text-center text-gray-600 text-xs py-4">Carregando...</p>';
-    const res  = await fetch('/api/mensagens?conversa_id=' + conversaId);
+    const res  = await fetch('/api/mensagens?conversa_id=' + conversaId + '&pagina=1&_ts=' + Date.now());
     const msgs = await res.json();
+    podeCarregarMaisMensagens = Array.isArray(msgs) && msgs.length >= 50;
+    atualizarBotaoCarregarMais();
     box.innerHTML = '';
     if (!msgs.length) {
         box.innerHTML = '<p class="text-center text-gray-600 text-xs py-8">Nenhuma mensagem ainda. Diga olá! 👋</p>';
@@ -582,38 +723,151 @@ async function carregarMensagens(conversaId) {
     box.scrollTop = box.scrollHeight;
 }
 
+async function carregarMaisMensagens() {
+    if (!conversaAtualId || !podeCarregarMaisMensagens) return;
+
+    paginaMensagensAtual += 1;
+    const box = document.getElementById('messages');
+    const scrollAntes = box.scrollHeight;
+
+    const res = await fetch('/api/mensagens?conversa_id=' + conversaAtualId + '&pagina=' + paginaMensagensAtual + '&_ts=' + Date.now());
+    const msgs = await res.json();
+
+    if (!Array.isArray(msgs) || msgs.length === 0) {
+        podeCarregarMaisMensagens = false;
+        atualizarBotaoCarregarMais();
+        return;
+    }
+
+    podeCarregarMaisMensagens = msgs.length >= 50;
+    atualizarBotaoCarregarMais();
+
+    const fragmento = document.createDocumentFragment();
+    msgs.forEach(function(m) {
+        fragmento.appendChild(criarElementoMensagem(m));
+    });
+    box.prepend(fragmento);
+
+    box.scrollTop = box.scrollHeight - scrollAntes;
+}
+
+function atualizarBotaoCarregarMais() {
+    const btn = document.getElementById('btn-carregar-mais');
+    if (!btn) return;
+    btn.classList.toggle('hidden', !podeCarregarMaisMensagens);
+}
+
 // ── Renderizar mensagem ───────────────────────
 function renderizarMensagem(m) {
     const box    = document.getElementById('messages');
-    const proprio = m.usuario_id === CURRENT_USER_ID;
-    const inicial = m.usuario_nome.charAt(0).toUpperCase();
-    const cores  = ['bg-emerald-700', 'bg-pink-700', 'bg-amber-700', 'bg-purple-700'];
-    const cor    = proprio ? 'bg-indigo-600' : cores[m.usuario_id % cores.length];
-    const hora   = new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const texto  = m.conteudo.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-
-    const div = document.createElement('div');
-    div.className = 'flex items-start gap-3 msg-enter' + (proprio ? ' flex-row-reverse' : '');
-    div.innerHTML = '<div class="w-8 h-8 ' + cor + ' rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">' + inicial + '</div>'
-        + '<div class="max-w-lg">'
-        + '<div class="flex items-baseline gap-2 mb-1' + (proprio ? ' flex-row-reverse' : '') + '">'
-        + '<span class="text-sm font-semibold ' + (proprio ? 'text-indigo-400' : 'text-white') + '">' + (proprio ? 'Você' : m.usuario_nome) + '</span>'
-        + '<span class="text-xs text-gray-500">' + hora + '</span>'
-        + '</div>'
-        + '<div class="' + (proprio ? 'bg-indigo-600' : 'bg-gray-800') + ' rounded-2xl ' + (proprio ? 'rounded-tr-sm' : 'rounded-tl-sm') + ' px-4 py-2.5 text-sm ' + (proprio ? 'text-white' : 'text-gray-200') + '">' + texto + '</div>'
-        + '</div>';
+    const div = criarElementoMensagem(m);
 
     const vazio = box.querySelector('p.text-center');
     if (vazio) vazio.remove();
     box.appendChild(div);
 }
 
+function criarElementoMensagem(m) {
+    const proprio = m.usuario_id === CURRENT_USER_ID;
+    const inicial = m.usuario_nome.charAt(0).toUpperCase();
+    const cores  = ['bg-emerald-700', 'bg-pink-700', 'bg-amber-700', 'bg-purple-700'];
+    const cor    = proprio ? 'bg-indigo-600' : cores[m.usuario_id % cores.length];
+    const hora   = formatarHoraBrasilia(m.criado_em);
+    const foiApagada = !!m.excluida_em || m.conteudo === '[mensagem apagada]';
+    const textoSeguro = (m.conteudo || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+    const conteudoHtml = foiApagada ? '<em class="text-gray-400">Mensagem apagada</em>' : textoSeguro;
+    const temArquivo = !!m.arquivo_path;
+    const arquivoUrl = temArquivo ? ('/uploads/' + m.arquivo_path) : '';
+    const isImagem = temArquivo && /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(m.arquivo_nome || m.arquivo_path || '');
+
+    const anexoHtml = temArquivo && !foiApagada
+        ? (isImagem
+            ? '<a href="' + arquivoUrl + '" target="_blank" class="block mt-2"><img src="' + arquivoUrl + '" alt="Anexo" class="max-w-xs rounded-lg border border-gray-700"></a>'
+            : '<a href="' + arquivoUrl + '" target="_blank" download class="inline-flex mt-2 text-xs text-indigo-300 underline">Anexo: ' + (m.arquivo_nome || 'arquivo') + '</a>')
+        : '';
+
+    const podeApagar = proprio && !foiApagada;
+    const btnApagar = podeApagar
+        ? '<button onclick="apagarMensagem(' + m.id + ')" class="opacity-0 group-hover:opacity-100 text-[10px] text-red-300 hover:text-red-200 transition">Apagar</button>'
+        : '';
+
+    const div = document.createElement('div');
+    div.className = 'flex items-start gap-3 msg-enter group' + (proprio ? ' flex-row-reverse' : '');
+    div.setAttribute('data-msg-id', String(m.id || ''));
+    div.innerHTML = '<div class="w-8 h-8 ' + cor + ' rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">' + inicial + '</div>'
+        + '<div class="max-w-lg">'
+        + '<div class="flex items-baseline gap-2 mb-1' + (proprio ? ' flex-row-reverse' : '') + '">'
+        + '<span class="text-sm font-semibold ' + (proprio ? 'text-indigo-400' : 'text-white') + '">' + (proprio ? 'Você' : m.usuario_nome) + '</span>'
+        + '<span class="text-xs text-gray-500">' + hora + '</span>'
+        + btnApagar
+        + '</div>'
+        + '<div class="' + (proprio ? 'bg-indigo-600' : 'bg-gray-800') + ' rounded-2xl ' + (proprio ? 'rounded-tr-sm' : 'rounded-tl-sm') + ' px-4 py-2.5 text-sm ' + (proprio ? 'text-white' : 'text-gray-200') + '">' + conteudoHtml + anexoHtml + '</div>'
+        + '</div>';
+
+    return div;
+}
+
+function formatarHoraBrasilia(valorData) {
+    if (!valorData) return '--:--';
+
+    let data = null;
+    if (typeof valorData === 'string') {
+        const base = valorData.includes('T') ? valorData : valorData.replace(' ', 'T');
+        const withTz = /Z|[+-]\d{2}:?\d{2}$/.test(base) ? base : (base + 'Z');
+        data = new Date(withTz);
+    } else {
+        data = new Date(valorData);
+    }
+
+    if (isNaN(data.getTime())) {
+        data = new Date(valorData);
+    }
+
+    return data.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Sao_Paulo'
+    });
+}
+
 // ── Enviar mensagem ───────────────────────────
 function enviarMensagem() {
     if (!conversaAtualId) return;
     const input = document.getElementById('msg-input');
+    const fileInput = document.getElementById('msg-file-input');
+    const preview = document.getElementById('msg-file-preview');
     const texto = input.value.trim();
-    if (!texto) return;
+    const arquivo = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    if (!texto && !arquivo) return;
+
+    if (arquivo) {
+        const formData = new FormData();
+        formData.append('conversa_id', String(conversaAtualId));
+        formData.append('conteudo', texto);
+        formData.append('arquivo', arquivo);
+
+        fetch('/api/mensagens', {
+            method: 'POST',
+            body: formData,
+        }).then(function(r) { return r.json(); }).then(function(m) {
+            if (m && m.id) {
+                renderizarMensagem(m);
+                document.getElementById('messages').scrollTop = 99999;
+                input.value = '';
+                input.style.height = 'auto';
+                fileInput.value = '';
+                if (preview) {
+                    preview.textContent = '';
+                    preview.classList.add('hidden');
+                }
+            } else {
+                alert(m.erro || 'Erro ao enviar arquivo');
+            }
+        }).catch(function(e) {
+            alert('Erro ao enviar arquivo: ' + e.message);
+        });
+        return;
+    }
 
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'send_message', conversa_id: conversaAtualId, conteudo: texto }));
@@ -629,6 +883,54 @@ function enviarMensagem() {
     }
     input.value = '';
     input.style.height = 'auto';
+}
+
+function atualizarPreviewAnexoMensagem() {
+    const fileInput = document.getElementById('msg-file-input');
+    const preview = document.getElementById('msg-file-preview');
+    if (!fileInput || !preview) return;
+
+    const arquivo = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    if (!arquivo) {
+        preview.textContent = '';
+        preview.classList.add('hidden');
+        return;
+    }
+
+    preview.textContent = 'Anexo selecionado: ' + arquivo.name;
+    preview.classList.remove('hidden');
+}
+
+async function apagarMensagem(id) {
+    if (!id) return;
+    if (!confirm('Deseja apagar esta mensagem?')) return;
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'delete_message', message_id: id }));
+        return;
+    }
+
+    const res = await fetch('/api/mensagens/' + id, { method: 'DELETE' });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.erro || 'Erro ao apagar mensagem');
+        return;
+    }
+
+    aplicarMensagemApagadaNoDom(id);
+}
+
+function aplicarMensagemApagadaNoDom(id) {
+    const item = document.querySelector('[data-msg-id="' + id + '"]');
+    if (!item) return;
+
+    const bolha = item.querySelector('.rounded-2xl');
+    if (bolha) {
+        bolha.innerHTML = '<em class="text-gray-400">Mensagem apagada</em>';
+    }
+
+    const botao = item.querySelector('button[onclick^="apagarMensagem("]');
+    if (botao) botao.remove();
 }
 
 function mostrarTyping(nome) {
@@ -649,6 +951,38 @@ function autoResize(el) {
     if (ws && ws.readyState === WebSocket.OPEN && conversaAtualId) {
         ws.send(JSON.stringify({ type: 'typing', conversa_id: conversaAtualId }));
     }
+}
+
+function toggleEmojiPicker() {
+    const picker = document.getElementById('emoji-picker');
+    if (!picker) return;
+    picker.classList.toggle('hidden');
+}
+
+function inserirEmoji(emoji) {
+    const input = document.getElementById('msg-input');
+    if (!input) return;
+
+    const inicio = input.selectionStart || input.value.length;
+    const fim = input.selectionEnd || input.value.length;
+    const antes = input.value.slice(0, inicio);
+    const depois = input.value.slice(fim);
+
+    input.value = antes + emoji + depois;
+    const novaPos = inicio + emoji.length;
+    input.selectionStart = novaPos;
+    input.selectionEnd = novaPos;
+    input.focus();
+    autoResize(input);
+}
+
+function popularEmojiPicker() {
+    const grid = document.getElementById('emoji-picker-grid');
+    if (!grid) return;
+
+    grid.innerHTML = EMOJIS_POPULARES.map(function(emoji) {
+        return '<button type="button" onclick="inserirEmoji(\'' + emoji + '\')" class="hover:scale-110 transition text-base leading-none p-1 rounded hover:bg-gray-700">' + emoji + '</button>';
+    }).join('');
 }
 
 // ── Emergência ────────────────────────────────
@@ -699,6 +1033,8 @@ async function enviarChamado() {
             alert('Chamado aberto, mas alguns anexos falharam:\n' + detalhes);
         }
 
+        atualizarBadgePainelChamados();
+
     } catch (err) {
         alert('Erro: ' + err.message);
     } finally {
@@ -714,6 +1050,16 @@ let usuariosSelecionados = new Set();
 function abrirModalNovaConversa() {
     tipoConversa = 'privada';
     usuariosSelecionados.clear();
+    const tabPrivada = document.getElementById('tab-privada');
+    const tabGrupo = document.getElementById('tab-grupo');
+    if (tabPrivada) {
+        tabPrivada.className = 'flex-1 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white transition';
+    }
+    if (tabGrupo) {
+        tabGrupo.className = 'flex-1 py-2 text-sm font-medium rounded-lg text-gray-400 hover:text-white transition';
+    }
+    const grupoNomeInput = document.getElementById('grupo-nome');
+    if (grupoNomeInput) grupoNomeInput.value = '';
     document.getElementById('form-privada').classList.remove('hidden');
     document.getElementById('form-grupo').classList.add('hidden');
     document.getElementById('modal-nova-conversa').classList.remove('hidden');
@@ -722,6 +1068,8 @@ function abrirModalNovaConversa() {
 
 function fecharModalNovaConversa() {
     document.getElementById('modal-nova-conversa').classList.add('hidden');
+    tipoConversa = 'privada';
+    usuariosSelecionados.clear();
 }
 
 function trocarTipoConversa(tipo) {
@@ -853,6 +1201,66 @@ function fecharModalEditarGrupo() {
     grupoEditandoNome = null;
 }
 
+async function abrirModalInfoGrupo() {
+    if (!conversaAtualId) return;
+
+    const [resConv, resParts] = await Promise.all([
+        fetch('/api/conversas/' + conversaAtualId),
+        fetch('/api/conversas/' + conversaAtualId + '/participantes')
+    ]);
+
+    if (!resConv.ok) {
+        alert('Não foi possível carregar informações do grupo.');
+        return;
+    }
+
+    const conversa = await resConv.json();
+    const participantes = resParts.ok ? await resParts.json() : [];
+
+    document.getElementById('info-grupo-nome').textContent = conversa.nome || 'Grupo';
+    document.getElementById('info-grupo-meta').textContent = (conversa.participantes_count || participantes.length || 0) + ' participante(s)';
+    document.getElementById('info-grupo-descricao').textContent = conversa.descricao || 'Sem descrição cadastrada.';
+
+    const descricaoInput = document.getElementById('info-grupo-descricao-input');
+    if (descricaoInput) {
+        descricaoInput.value = conversa.descricao || '';
+    }
+
+    const div = document.getElementById('info-grupo-participantes');
+    div.innerHTML = (participantes || []).map(function(u) {
+        return '<div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 border border-gray-700">'
+            + '<span class="w-2 h-2 rounded-full bg-green-400"></span>'
+            + '<span class="text-sm text-gray-200">' + u.nome + '</span>'
+            + '<span class="text-xs text-gray-500 ml-auto">' + (u.setor || u.papel || '') + '</span>'
+            + '</div>';
+    }).join('') || '<p class="text-xs text-gray-500">Sem participantes.</p>';
+
+    document.getElementById('modal-info-grupo').classList.remove('hidden');
+}
+
+function fecharModalInfoGrupo() {
+    document.getElementById('modal-info-grupo').classList.add('hidden');
+}
+
+async function salvarDescricaoGrupo() {
+    const input = document.getElementById('info-grupo-descricao-input');
+    if (!input || !conversaAtualId) return;
+
+    const res = await fetch('/api/conversas/' + conversaAtualId + '/descricao', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descricao: input.value.trim() })
+    });
+
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.erro || 'Erro ao salvar descrição.');
+        return;
+    }
+
+    document.getElementById('info-grupo-descricao').textContent = input.value.trim() || 'Sem descrição cadastrada.';
+}
+
 async function carregarMembrosGrupo() {
     const resMembros = await fetch('/api/conversas/' + grupoEditandoId + '/participantes');
     const membros    = await resMembros.json();
@@ -935,6 +1343,131 @@ async function confirmarExcluirGrupo() {
     }
 }
 
+function configurarBusca() {
+    const input = document.getElementById('search-input');
+    if (!input) return;
+
+    input.addEventListener('input', function() {
+        const termo = input.value.trim().toLowerCase();
+
+        document.querySelectorAll('.conversa-item').forEach(function(item) {
+            const nome = (item.dataset.nome || '').toLowerCase();
+            const preview = (item.querySelector('.preview-msg')?.textContent || '').toLowerCase();
+            const visivel = !termo || nome.includes(termo) || preview.includes(termo);
+            item.parentElement.style.display = visivel ? '' : 'none';
+        });
+
+        document.querySelectorAll('#messages .msg-enter').forEach(function(msg) {
+            const texto = (msg.textContent || '').toLowerCase();
+            msg.style.display = (!termo || texto.includes(termo)) ? '' : 'none';
+        });
+    });
+}
+
+function configurarAnexoChamado() {
+    const input = document.getElementById('input-anexo-chamado');
+    const label = document.getElementById('label-anexo-chamado');
+    if (!input || !label) return;
+
+    input.addEventListener('change', function() {
+        if (!input.files || input.files.length === 0) {
+            label.textContent = 'Clique para selecionar arquivos';
+            label.classList.remove('text-indigo-300', 'font-semibold');
+            label.classList.add('text-gray-400');
+            return;
+        }
+
+        if (input.files.length === 1) {
+            label.textContent = 'Arquivo: ' + input.files[0].name;
+        } else {
+            label.textContent = input.files.length + ' arquivos selecionados';
+        }
+
+        label.classList.remove('text-gray-400');
+        label.classList.add('text-indigo-300', 'font-semibold');
+    });
+}
+
+function configurarNotificacoes() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+    }
+}
+
+function notificarMensagem(titulo, corpo) {
+    if (!('Notification' in window)) return;
+    if (document.hasFocus()) return;
+    if (Notification.permission !== 'granted') return;
+
+    const n = new Notification(titulo, { body: corpo });
+    setTimeout(function() { n.close(); }, 5000);
+}
+
+async function verificarNovasMensagensNotificacao() {
+    try {
+        const res = await fetch('/api/conversas');
+        const lista = await res.json();
+        const total = (lista || []).reduce(function(acc, c) {
+            return acc + (parseInt(c.nao_lidas, 10) || 0);
+        }, 0);
+
+        if (notificacoesInicializadas && total > ultimoTotalNaoLidas) {
+            const delta = total - ultimoTotalNaoLidas;
+            notificarMensagem('Chat Interno', 'Voce recebeu ' + delta + ' nova(s) mensagem(ns).');
+        }
+
+        ultimoTotalNaoLidas = total;
+        notificacoesInicializadas = true;
+    } catch (e) {
+        console.error('Erro ao verificar notificacoes:', e);
+    }
+}
+
+async function atualizarBadgePainelChamados() {
+    const badge = document.getElementById('badge-novos-chamados');
+    if (!badge) return;
+
+    try {
+        const res = await fetch('/api/chamados?status=aberto');
+        if (!res.ok) {
+            throw new Error('Falha ao buscar chamados: HTTP ' + res.status);
+        }
+        const chamados = await res.json();
+        let lastSeen = parseInt(localStorage.getItem('dashboard_last_seen_aberto') || '0', 10);
+        const agora = Date.now();
+
+        if (!Number.isFinite(lastSeen) || lastSeen < 0 || lastSeen > (agora + 60000)) {
+            lastSeen = 0;
+            localStorage.setItem('dashboard_last_seen_aberto', '0');
+        }
+
+        const temNovo = (chamados || []).some(function(c) {
+            const criado = normalizarDataServidor(c.criado_em);
+            return criado > lastSeen;
+        });
+
+        badge.classList.toggle('hidden', !temNovo);
+    } catch (e) {
+        console.error('Erro ao atualizar badge de chamados:', e);
+        badge.classList.add('hidden');
+    }
+}
+
+function normalizarDataServidor(valorData) {
+    if (!valorData) return 0;
+
+    if (typeof valorData === 'string') {
+        const base = valorData.includes('T') ? valorData : valorData.replace(' ', 'T');
+        const withTz = /Z|[+-]\d{2}:?\d{2}$/.test(base) ? base : (base + 'Z');
+        const data = new Date(withTz);
+        if (!isNaN(data.getTime())) return data.getTime();
+    }
+
+    const fallback = new Date(valorData);
+    return isNaN(fallback.getTime()) ? 0 : fallback.getTime();
+}
+
 // Preenche o select de categorias ao carregar a página
 function popularCategorias() {
     const sel = document.getElementById('sel-categoria');
@@ -977,7 +1510,7 @@ document.getElementById('form-classificar').onsubmit = async (e) => {
         if (response.ok) {
             alert("Chamado classificado e movido para documentação!");
             fecharModalClassificar();
-            carregarChamados(); // Função que atualiza a lista na tela
+            atualizarBadgePainelChamados();
         }
     } catch (error) {
         console.error("Erro ao classificar:", error);

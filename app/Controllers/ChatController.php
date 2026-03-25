@@ -29,10 +29,12 @@ class ChatController
                 END AS nome,
                 (SELECT m.conteudo FROM mensagens m
                  WHERE m.conversa_id = c.id
+                    AND m.criado_em >= p.entrou_em
                  ORDER BY m.criado_em DESC LIMIT 1) AS ultima_mensagem,
                 (SELECT COUNT(*) FROM mensagens m
                  WHERE m.conversa_id = c.id
                  AND m.usuario_id != ?
+                    AND m.criado_em >= p.entrou_em
                  AND (p.ultima_leitura IS NULL OR m.criado_em > p.ultima_leitura)
                 ) AS nao_lidas
             FROM conversas c
@@ -61,22 +63,31 @@ class ChatController
 
         $pdo = getDbConnection();
 
-        $check = $pdo->prepare("SELECT 1 FROM participantes WHERE conversa_id = ? AND usuario_id = ?");
+        $check = $pdo->prepare("SELECT entrou_em FROM participantes WHERE conversa_id = ? AND usuario_id = ?");
         $check->execute([$conversaId, $userId]);
-        if (!$check->fetch()) {
+        $participacao = $check->fetch();
+        if (!$participacao) {
             return Json::erro($response, 'Acesso negado', 403);
         }
 
-        $stmt = $pdo->prepare("
-            SELECT m.id, m.conteudo, m.arquivo_path, m.arquivo_nome, m.criado_em,
-                   u.id AS usuario_id, u.nome AS usuario_nome
-            FROM mensagens m
-            INNER JOIN usuarios u ON u.id = m.usuario_id
-            WHERE m.conversa_id = ?
-            ORDER BY m.criado_em DESC
-            LIMIT ? OFFSET ?
-        ");
-        $stmt->execute([$conversaId, $porPagina, $offset]);
+        $entrouEm = $participacao['entrou_em'] ?? null;
+
+            $temExclusao = $this->columnExists($pdo, 'mensagens', 'excluida_em') && $this->columnExists($pdo, 'mensagens', 'excluida_por');
+            $selectExclusao = $temExclusao
+                ? 'm.excluida_em, m.excluida_por,'
+                : 'NULL AS excluida_em, NULL AS excluida_por,';
+
+            $stmt = $pdo->prepare("
+                SELECT m.id, m.conteudo, m.arquivo_path, m.arquivo_nome, {$selectExclusao} m.criado_em,
+                       u.id AS usuario_id, u.nome AS usuario_nome
+                FROM mensagens m
+                INNER JOIN usuarios u ON u.id = m.usuario_id
+                WHERE m.conversa_id = ?
+                  AND m.criado_em >= ?
+                ORDER BY m.criado_em DESC
+                LIMIT ? OFFSET ?
+            ");
+        $stmt->execute([$conversaId, $entrouEm, $porPagina, $offset]);
 
         return Json::json($response, array_reverse($stmt->fetchAll()));
     }
@@ -86,12 +97,14 @@ class ChatController
     {
         $userId = $request->getAttribute('user_id');
         $data   = (array) $request->getParsedBody();
+        $files  = $request->getUploadedFiles();
 
         $conversaId = (int) ($data['conversa_id'] ?? 0);
         $conteudo   = trim($data['conteudo'] ?? '');
+        $arquivo    = $files['arquivo'] ?? null;
 
-        if (!$conversaId || !$conteudo) {
-            return Json::erro($response, 'conversa_id e conteudo são obrigatórios');
+        if (!$conversaId || ($conteudo === '' && !$arquivo)) {
+            return Json::erro($response, 'conversa_id e conteudo ou arquivo são obrigatórios');
         }
 
         if (mb_strlen($conteudo) > 5000) {
@@ -106,12 +119,21 @@ class ChatController
             return Json::erro($response, 'Acesso negado', 403);
         }
 
-        $stmt = $pdo->prepare("INSERT INTO mensagens (conversa_id, usuario_id, conteudo) VALUES (?, ?, ?)");
-        $stmt->execute([$conversaId, $userId, $conteudo]);
+        $arquivoPath = null;
+        $arquivoNome = null;
+        if ($arquivo && $arquivo->getError() !== UPLOAD_ERR_NO_FILE) {
+            if ($arquivo->getError() !== UPLOAD_ERR_OK) {
+                return Json::erro($response, 'Falha no upload do arquivo');
+            }
+            [$arquivoPath, $arquivoNome] = $this->salvarArquivoMensagem($arquivo, $conversaId);
+        }
+
+        $stmt = $pdo->prepare("INSERT INTO mensagens (conversa_id, usuario_id, conteudo, arquivo_path, arquivo_nome) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$conversaId, $userId, $conteudo, $arquivoPath, $arquivoNome]);
         $msgId = (int) $pdo->lastInsertId();
 
         $nova = $pdo->prepare("
-            SELECT m.id, m.conteudo, m.criado_em,
+            SELECT m.id, m.conteudo, m.arquivo_path, m.arquivo_nome, m.criado_em,
                    u.id AS usuario_id, u.nome AS usuario_nome
             FROM mensagens m
             INNER JOIN usuarios u ON u.id = m.usuario_id
@@ -122,19 +144,60 @@ class ChatController
         return Json::json($response, $nova->fetch(), 201);
     }
 
+    // DELETE /api/mensagens/{id}
+    public function apagarMensagem(Request $request, Response $response, array $args): Response
+    {
+        $userId = (int) $request->getAttribute('user_id');
+        $papel = (string) $request->getAttribute('user_papel');
+        $mensagemId = (int) $args['id'];
+        $pdo = getDbConnection();
+
+        $stmtBusca = $pdo->prepare('SELECT id, usuario_id FROM mensagens WHERE id = ? LIMIT 1');
+        $stmtBusca->execute([$mensagemId]);
+        $msg = $stmtBusca->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$msg) {
+            return Json::erro($response, 'Mensagem não encontrada', 404);
+        }
+
+        $dono = (int) $msg['usuario_id'] === $userId;
+        if (!$dono && $papel !== 'admin') {
+            return Json::erro($response, 'Sem permissão para apagar esta mensagem', 403);
+        }
+
+        $temExclusao = $this->columnExists($pdo, 'mensagens', 'excluida_em') && $this->columnExists($pdo, 'mensagens', 'excluida_por');
+        if ($temExclusao) {
+            $stmt = $pdo->prepare("\n                UPDATE mensagens\n                SET conteudo = '',\n                    arquivo_path = NULL,\n                    arquivo_nome = NULL,\n                    excluida_em = NOW(),\n                    excluida_por = ?\n                WHERE id = ?\n            ");
+            $stmt->execute([$userId, $mensagemId]);
+        } else {
+            $stmt = $pdo->prepare("\n                UPDATE mensagens\n                SET conteudo = '[mensagem apagada]',\n                    arquivo_path = NULL,\n                    arquivo_nome = NULL\n                WHERE id = ?\n            ");
+            $stmt->execute([$mensagemId]);
+        }
+
+        return Json::json($response, ['ok' => true]);
+    }
+
     // GET /api/usuarios/online
     public function listarUsuarios(Request $request, Response $response): Response
     {
         $userId = $request->getAttribute('user_id');
         $pdo    = getDbConnection();
 
-        $stmt = $pdo->prepare("
-            SELECT u.id, u.nome, u.papel, s.nome AS setor
-            FROM usuarios u
-            LEFT JOIN setores s ON s.id = u.setor_id
-            WHERE u.ativo = 1 AND u.id != ?
-            ORDER BY u.nome ASC
-        ");
+            $temPresenca = $this->tableExists($pdo, 'user_presenca');
+            $joinPresenca = $temPresenca ? 'LEFT JOIN user_presenca up ON up.usuario_id = u.id' : '';
+            $selectPresenca = $temPresenca
+                ? 'COALESCE(up.online, 0) AS online, up.last_seen AS last_seen,'
+                : '0 AS online, NULL AS last_seen,';
+
+            $stmt = $pdo->prepare("
+                SELECT u.id, u.nome, u.papel, s.nome AS setor, {$selectPresenca}
+                       u.ativo
+                FROM usuarios u
+                LEFT JOIN setores s ON s.id = u.setor_id
+                {$joinPresenca}
+                WHERE u.ativo = 1 AND u.id != ?
+                    ORDER BY online DESC, u.nome ASC
+            ");
         $stmt->execute([$userId]);
 
         return Json::json($response, $stmt->fetchAll());
@@ -237,6 +300,56 @@ class ChatController
         $stmt->execute([$nome, $conversaId]);
 
         return Json::json($response, ['ok' => true, 'nome' => $nome]);
+    }
+
+    // GET /api/conversas/{id}
+    public function obterConversa(Request $request, Response $response, array $args): Response
+    {
+        $userId = (int) $request->getAttribute('user_id');
+        $conversaId = (int) $args['id'];
+        $pdo = getDbConnection();
+
+        $check = $pdo->prepare('SELECT 1 FROM participantes WHERE conversa_id = ? AND usuario_id = ?');
+        $check->execute([$conversaId, $userId]);
+        if (!$check->fetch()) {
+            return Json::erro($response, 'Acesso negado', 403);
+        }
+
+        $temDescricao = $this->columnExists($pdo, 'conversas', 'descricao');
+        $selectDescricao = $temDescricao ? 'c.descricao' : 'NULL AS descricao';
+
+        $stmt = $pdo->prepare("\n            SELECT c.id, c.tipo, c.nome, {$selectDescricao}, c.criado_em,\n                   u.nome AS criado_por_nome,\n                   (SELECT COUNT(*) FROM participantes p WHERE p.conversa_id = c.id) AS participantes_count\n            FROM conversas c\n            LEFT JOIN usuarios u ON u.id = c.criado_por\n            WHERE c.id = ?\n            LIMIT 1\n        ");
+        $stmt->execute([$conversaId]);
+        $conversa = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$conversa) {
+            return Json::erro($response, 'Conversa não encontrada', 404);
+        }
+
+        return Json::json($response, $conversa);
+    }
+
+    // PATCH /api/conversas/{id}/descricao
+    public function atualizarDescricaoConversa(Request $request, Response $response, array $args): Response
+    {
+        $papel = (string) $request->getAttribute('user_papel');
+        if ($papel !== 'admin') {
+            return Json::erro($response, 'Apenas administradores podem editar descrição do grupo', 403);
+        }
+
+        $conversaId = (int) $args['id'];
+        $data = (array) $request->getParsedBody();
+        $descricao = trim((string) ($data['descricao'] ?? ''));
+        $pdo = getDbConnection();
+
+        if (!$this->columnExists($pdo, 'conversas', 'descricao')) {
+            return Json::erro($response, 'Coluna descricao ainda não existe no banco', 409);
+        }
+
+        $stmt = $pdo->prepare("UPDATE conversas SET descricao = ? WHERE id = ? AND tipo IN ('grupo','setor')");
+        $stmt->execute([$descricao !== '' ? $descricao : null, $conversaId]);
+
+        return Json::json($response, ['ok' => true, 'descricao' => $descricao]);
     }
 
     // DELETE /api/conversas/{id}
@@ -351,5 +464,61 @@ class ChatController
         $stmt->execute([$conversaId, $usuarioId]);
 
         return Json::json($response, ['ok' => true]);
+    }
+
+    private function columnExists(\PDO $pdo, string $table, string $column): bool
+    {
+        $stmt = $pdo->prepare("\n            SELECT COUNT(*)\n            FROM information_schema.COLUMNS\n            WHERE TABLE_SCHEMA = DATABASE()\n              AND TABLE_NAME = ?\n              AND COLUMN_NAME = ?\n        ");
+        $stmt->execute([$table, $column]);
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private function tableExists(\PDO $pdo, string $table): bool
+    {
+        $stmt = $pdo->prepare("\n            SELECT COUNT(*)\n            FROM information_schema.TABLES\n            WHERE TABLE_SCHEMA = DATABASE()\n              AND TABLE_NAME = ?\n        ");
+        $stmt->execute([$table]);
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private function salvarArquivoMensagem($arquivo, int $conversaId): array
+    {
+        $mimesPermitidos = [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ];
+
+        $max = (int) ($_ENV['UPLOAD_MAX_SIZE'] ?? 10485760);
+        if ($arquivo->getSize() > $max) {
+            throw new \RuntimeException('Arquivo muito grande (máximo 10MB)');
+        }
+
+        $tmpPath = $arquivo->getStream()->getMetadata('uri');
+        if (!$tmpPath || !is_file($tmpPath)) {
+            throw new \RuntimeException('Arquivo temporario inválido');
+        }
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($tmpPath);
+        if (!in_array($mime, $mimesPermitidos, true)) {
+            throw new \RuntimeException('Tipo de arquivo não permitido');
+        }
+
+        $orig = (string) $arquivo->getClientFilename();
+        $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+        if ($ext === '') {
+            $ext = $mime === 'application/pdf' ? 'pdf' : 'bin';
+        }
+
+        $novoNome = bin2hex(random_bytes(16)) . '.' . $ext;
+        $destDir = __DIR__ . '/../../public/uploads/chat-mensagens/' . $conversaId . '/';
+        if (!is_dir($destDir)) {
+            mkdir($destDir, 0775, true);
+        }
+
+        $arquivo->moveTo($destDir . $novoNome);
+
+        return ['chat-mensagens/' . $conversaId . '/' . $novoNome, $orig !== '' ? $orig : $novoNome];
     }
 }

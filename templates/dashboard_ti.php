@@ -58,6 +58,9 @@
                 </div>
                 
                 <div class="flex gap-2">
+                    <button onclick="abrirModalTaxonomias()" class="bg-gray-800 border border-gray-700 text-xs font-bold text-indigo-300 rounded-lg px-3 py-2 hover:bg-gray-700 transition">
+                        GERENCIAR CATEGORIAS
+                    </button>
                     <select id="filtro-setor" onchange="popularFiltroSubcategorias()" class="bg-gray-800 border border-gray-700 text-xs font-bold text-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="">TODOS OS SETORES</option>
                         <option value="ERP">ERP</option>
@@ -168,50 +171,65 @@
     </div>
 
     <div id="modal-detalhes" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-lg shadow-2xl p-6 relative">
+        <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-4xl shadow-2xl p-6 relative">
             <button onclick="fecharModal('modal-detalhes')" class="absolute top-4 right-4 text-gray-500 hover:text-white">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            
-            <div class="flex items-center gap-3 mb-2">
-                <span id="detalhes-id-badge" class="bg-gray-800 text-gray-400 px-2 py-0.5 rounded text-xs font-mono font-bold"></span>
-                <span id="detalhes-prioridade" class="text-[10px] font-black px-2 py-0.5 rounded uppercase"></span>
-            </div>
-            <h3 id="detalhes-titulo" class="text-xl font-bold text-white mb-4"></h3>
-            
-            <label class="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Descrição</label>
-            <div id="detalhes-descricao" class="text-sm text-gray-300 bg-black/30 p-4 rounded-xl border border-gray-800/50 mb-4"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <span id="detalhes-id-badge" class="bg-gray-800 text-gray-400 px-2 py-0.5 rounded text-xs font-mono font-bold"></span>
+                        <span id="detalhes-prioridade" class="text-[10px] font-black px-2 py-0.5 rounded uppercase"></span>
+                    </div>
+                    <h3 id="detalhes-titulo" class="text-xl font-bold text-white mb-4"></h3>
 
-            <div id="detalhes-anexo-container" class="mb-4 hidden">
-                <img id="detalhes-anexo-preview" class="hidden w-full max-h-72 object-contain bg-black/30 border border-gray-800/50 rounded-xl p-2 mb-3" alt="Prévia do anexo">
-                <div class="flex flex-wrap gap-2">
-                    <a id="detalhes-anexo-view-btn" href="#" target="_blank" class="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs text-white font-bold rounded-lg transition">
-                        Visualizar
-                    </a>
-                    <a id="detalhes-anexo-btn" href="#" target="_blank" download class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-indigo-400 font-bold rounded-lg border border-gray-700 transition">
-                        Baixar Anexo
-                    </a>
+                    <label class="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Descrição</label>
+                    <div id="detalhes-descricao" class="text-sm text-gray-300 bg-black/30 p-4 rounded-xl border border-gray-800/50 mb-4"></div>
+
+                    <p id="detalhes-resolvido-por" class="text-xs text-gray-500"></p>
+                </div>
+
+                <div id="detalhes-anexo-container" class="hidden">
+                    <img id="detalhes-anexo-preview" class="hidden w-full max-h-96 object-contain bg-black/30 border border-gray-800/50 rounded-xl p-2 mb-3" alt="Prévia do anexo">
+                    <div class="flex flex-wrap gap-2">
+                        <a id="detalhes-anexo-view-btn" href="#" target="_blank" class="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs text-white font-bold rounded-lg transition">
+                            Visualizar
+                        </a>
+                        <a id="detalhes-anexo-btn" href="#" target="_blank" download class="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-indigo-400 font-bold rounded-lg border border-gray-700 transition">
+                            Baixar Anexo
+                        </a>
+                    </div>
                 </div>
             </div>
 
-            <div class="pt-4 border-t border-gray-800 flex gap-3">
+            <div class="pt-4 border-t border-gray-800 flex gap-3 mt-6">
+                <button id="detalhes-btn-editar" class="flex-1 bg-gray-800 hover:bg-amber-600 text-gray-300 hover:text-white text-xs font-bold py-2.5 rounded-lg transition">EDITAR CLASSIFICAÇÃO</button>
                 <button id="detalhes-btn-chamar" class="flex-1 bg-gray-800 hover:bg-indigo-600 text-gray-300 hover:text-white text-xs font-bold py-2.5 rounded-lg transition">CHAMAR SETOR</button>
                 <button id="detalhes-btn-finalizar" class="flex-1 bg-gray-800 hover:bg-green-600 text-gray-300 hover:text-white text-xs font-bold py-2.5 rounded-lg transition">FINALIZAR</button>
             </div>
         </div>
     </div>
 
+    <div id="modal-taxonomias" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-2xl shadow-2xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-white">Categorias e Subcategorias</h3>
+                <button onclick="fecharModal('modal-taxonomias')" class="text-gray-500 hover:text-white">✕</button>
+            </div>
+
+            <form id="form-taxonomia" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <input id="taxonomia-categoria" placeholder="Categoria" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+                <input id="taxonomia-subcategoria" placeholder="Subcategoria" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-bold">Adicionar</button>
+            </form>
+
+            <div id="lista-taxonomias" class="max-h-80 overflow-y-auto space-y-2"></div>
+        </div>
+    </div>
+
     <script>
         const CONFIG = {
-            categorias: {
-                "ERP": ["Financeiro", "Fiscal", "Contabilidade", "Vendas", "Estoque"],
-                "Engenharia": ["AutoCAD", "Solidworks", "Revisão Técnica"],
-                "Infraestrutura": ["Servidor", "Backup", "Cloud", "Banco de Dados"],
-                "Redes": ["Wi-Fi", "Cabeamento", "VPN"],
-                "Segurança": ["Antivírus", "Firewall", "Câmeras"],
-                "Hardware": ["Desktop/Notebook", "Impressora", "Periféricos"],
-                "Acessos": ["Reset de Senha", "Novo Usuário", "Permissões"]
-            },
+            categorias: {},
             prioridades: {
                 "critica": { label: "CRÍTICA", color: "bg-red-500", border: "border-red-500" },
                 "alta":    { label: "ALTA",    color: "bg-orange-500", border: "border-orange-500" },
@@ -225,53 +243,18 @@
 
         // INICIALIZAÇÃO
         document.addEventListener('DOMContentLoaded', () => {
-            popularCategorias();
-            popularFiltroSubcategorias();
+            carregarTaxonomias().then(() => {
+                popularCategorias();
+                popularFiltroCategorias();
+                popularFiltroSubcategorias();
+            });
             carregarDados();
-
-            // Adicionando a função que envia a classificação e atualiza a tela
-            const formClassificar = document.getElementById('form-classificar');
-            if (formClassificar) {
-                formClassificar.onsubmit = async (e) => {
-                    e.preventDefault();
-                    const btn = document.querySelector('#form-classificar button[type="submit"]');
-                    const textoOriginal = btn.innerText;
-                    btn.innerText = "Salvando...";
-                    btn.disabled = true;
-
-                    const id = document.getElementById('classificar-id-input').value;
-                    const data = {
-                        prioridade: document.getElementById('sel-prioridade').value,
-                        categoria: document.getElementById('sel-categoria').value,
-                        subcategoria: document.getElementById('sel-subcategoria').value
-                    };
-                    
-                    try {
-                        const res = await fetch(`/api/chamados/${id}/classificar`, {
-                            method: 'PATCH',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify(data)
-                        });
-
-                        if (res.ok) { 
-                            fecharModal('modal-classificar'); 
-                            await carregarDados(); // Recarrega os cards (agora vai para documentados)
-                        } else {
-                            alert("Erro ao classificar o chamado no servidor.");
-                        }
-                    } catch (err) {
-                        console.error("Erro no Javascript:", err);
-                        alert("Erro ao processar a requisição.");
-                    } finally {
-                        btn.innerText = textoOriginal;
-                        btn.disabled = false;
-                    }
-                };
-            }
         });
 
         function popularCategorias() {
             const sel = document.getElementById('sel-categoria');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">Selecione...</option>';
             Object.keys(CONFIG.categorias).forEach(cat => {
                 sel.innerHTML += `<option value="${cat}">${cat}</option>`;
             });
@@ -282,6 +265,22 @@
             const selSub = document.getElementById('sel-subcategoria');
             selSub.innerHTML = '<option value="">Selecione...</option>';
             if(cat) CONFIG.categorias[cat].forEach(s => selSub.innerHTML += `<option value="${s}">${s}</option>`);
+        }
+
+        function popularFiltroCategorias() {
+            const filtroSetor = document.getElementById('filtro-setor');
+            if (!filtroSetor) return;
+
+            const atual = filtroSetor.value;
+            filtroSetor.innerHTML = '<option value="">TODOS OS SETORES</option>';
+
+            Object.keys(CONFIG.categorias).forEach(cat => {
+                filtroSetor.innerHTML += `<option value="${cat}">${cat.toUpperCase()}</option>`;
+            });
+
+            if (atual && CONFIG.categorias[atual]) {
+                filtroSetor.value = atual;
+            }
         }
 
         function popularFiltroSubcategorias() {
@@ -313,9 +312,21 @@
         }
 
         async function carregarDados() {
-            const res = await fetch('/api/chamados');
-            chamadosCache = await res.json();
-            renderizarTudo();
+            try {
+                const res = await fetch('/api/chamados');
+                if (!res.ok) {
+                    throw new Error('Falha ao carregar chamados: HTTP ' + res.status);
+                }
+
+                chamadosCache = await res.json();
+                renderizarTudo();
+                marcarChamadosComoVisualizados();
+            } catch (e) {
+                console.error(e);
+                chamadosCache = [];
+                renderizarTudo();
+                alert('Nao foi possivel carregar os chamados. Verifique se o banco esta atualizado.');
+            }
         }
 
         function renderizarTudo() {
@@ -366,7 +377,9 @@
 
             documentados.forEach(c => doc.innerHTML += cardDocumentado(c));
 
-            const finalizados = chamadosCache.filter(c => c.status === 'resolvido');
+            const finalizados = chamadosCache
+                .filter(c => c.status === 'resolvido')
+                .sort((a, b) => new Date(b.atualizado_em || b.criado_em) - new Date(a.atualizado_em || a.criado_em));
             const countFinalizados = document.getElementById('count-finalizados');
             if (countFinalizados) countFinalizados.innerText = finalizados.length;
 
@@ -438,6 +451,7 @@
                 </div>
                 <p class="text-xs font-bold text-white truncate">#${c.id} - ${c.titulo}</p>
                 <p class="text-[10px] text-gray-500 mt-1 truncate">Solicitante: ${nome}</p>
+                <p class="text-[10px] text-gray-600 mt-1 truncate">Resolvido por: ${c.resolvido_por_nome || 'TI'}</p>
             </button>`;
         }
 
@@ -546,6 +560,10 @@
             document.getElementById('detalhes-id-badge').innerText = "#" + c.id;
             document.getElementById('detalhes-titulo').innerText = c.titulo;
             document.getElementById('detalhes-descricao').innerHTML = c.descricao_rich;
+            const resolvedByEl = document.getElementById('detalhes-resolvido-por');
+            if (resolvedByEl) {
+                resolvedByEl.innerText = c.resolvido_por_nome ? `Resolvido por: ${c.resolvido_por_nome}` : '';
+            }
             
             const badgePrioridade = document.getElementById('detalhes-prioridade');
             badgePrioridade.className = `${p.color} text-[10px] font-black text-black px-2 py-0.5 rounded uppercase`;
@@ -582,6 +600,14 @@
 
             const btnChamar = document.getElementById('detalhes-btn-chamar');
             const btnFinalizar = document.getElementById('detalhes-btn-finalizar');
+            const btnEditar = document.getElementById('detalhes-btn-editar');
+
+            if (btnEditar) {
+                btnEditar.onclick = () => {
+                    fecharModal('modal-detalhes');
+                    abrirModalClassificar(c.id);
+                };
+            }
 
             if (btnChamar) {
                 btnChamar.onclick = () => chamarSetor(c.usuario_id);
@@ -635,6 +661,128 @@
                 console.error("Erro de comunicação do JS com a API:", e);
                 alert("Erro de conexão ao tentar finalizar o chamado.");
             }
+        }
+
+        async function carregarTaxonomias() {
+            try {
+                const res = await fetch('/api/chamados-taxonomias');
+                const data = await res.json();
+                if (data && data.categorias) {
+                    CONFIG.categorias = data.categorias;
+                }
+            } catch (e) {
+                console.error('Erro ao carregar taxonomias:', e);
+            }
+        }
+
+        function marcarChamadosComoVisualizados() {
+            const maxCriado = chamadosCache
+                .filter(c => c.status === 'aberto')
+                .map(c => normalizarDataServidor(c.criado_em))
+                .reduce((acc, curr) => Math.max(acc, curr), 0);
+
+            if (maxCriado > 0) {
+                localStorage.setItem('dashboard_last_seen_aberto', String(maxCriado));
+            }
+        }
+
+        function normalizarDataServidor(valorData) {
+            if (!valorData) return 0;
+
+            if (typeof valorData === 'string') {
+                const base = valorData.includes('T') ? valorData : valorData.replace(' ', 'T');
+                const withTz = /Z|[+-]\d{2}:?\d{2}$/.test(base) ? base : (base + 'Z');
+                const data = new Date(withTz);
+                if (!isNaN(data.getTime())) return data.getTime();
+            }
+
+            const fallback = new Date(valorData);
+            return isNaN(fallback.getTime()) ? 0 : fallback.getTime();
+        }
+
+        async function abrirModalTaxonomias() {
+            await carregarListaTaxonomias();
+            document.getElementById('modal-taxonomias').classList.remove('hidden');
+        }
+
+        async function carregarListaTaxonomias() {
+            const lista = document.getElementById('lista-taxonomias');
+            if (!lista) return;
+
+            const res = await fetch('/api/chamados-taxonomias/detalhe');
+            const itens = await res.json();
+            lista.innerHTML = (itens || []).map(item => `
+                <div class="flex items-center justify-between bg-gray-800/70 border border-gray-700 rounded-lg px-3 py-2">
+                    <span class="text-sm text-gray-200">${item.categoria} / ${item.subcategoria}</span>
+                    <button onclick="removerTaxonomia(${item.id})" class="text-xs text-red-400 hover:text-red-300">Remover</button>
+                </div>
+            `).join('') || '<p class="text-xs text-gray-500">Nenhuma taxonomia cadastrada.</p>';
+        }
+
+        async function removerTaxonomia(id) {
+            if (!confirm('Deseja remover esta subcategoria?')) return;
+            await fetch(`/api/chamados-taxonomias/${id}`, { method: 'DELETE' });
+            await carregarTaxonomias();
+            popularCategorias();
+            popularFiltroCategorias();
+            popularFiltroSubcategorias();
+            await carregarListaTaxonomias();
+        }
+
+        const formTaxonomia = document.getElementById('form-taxonomia');
+        if (formTaxonomia) {
+            formTaxonomia.onsubmit = async (e) => {
+                e.preventDefault();
+                const categoria = document.getElementById('taxonomia-categoria').value.trim();
+                const subcategoria = document.getElementById('taxonomia-subcategoria').value.trim();
+                if (!categoria || !subcategoria) return;
+
+                await fetch('/api/chamados-taxonomias', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ categoria, subcategoria })
+                });
+
+                document.getElementById('taxonomia-categoria').value = '';
+                document.getElementById('taxonomia-subcategoria').value = '';
+
+                await carregarTaxonomias();
+                popularCategorias();
+                popularFiltroCategorias();
+                popularFiltroSubcategorias();
+                await carregarListaTaxonomias();
+            };
+        }
+
+        const formClassificar = document.getElementById('form-classificar');
+        if (formClassificar) {
+            formClassificar.onsubmit = async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('classificar-id-input').value;
+                const chamado = chamadosCache.find(x => String(x.id) === String(id));
+                const endpoint = chamado && chamado.status === 'aberto'
+                    ? `/api/chamados/${id}/classificar`
+                    : `/api/chamados/${id}/classificacao`;
+
+                const data = {
+                    prioridade: document.getElementById('sel-prioridade').value,
+                    categoria: document.getElementById('sel-categoria').value,
+                    subcategoria: document.getElementById('sel-subcategoria').value
+                };
+
+                const res = await fetch(endpoint, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    fecharModal('modal-classificar');
+                    await carregarDados();
+                } else {
+                    alert('Erro ao salvar classificação.');
+                }
+            };
         }
     </script>
 </body>

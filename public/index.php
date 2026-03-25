@@ -70,11 +70,14 @@ $app->group('/api', function ($group) {
     $group->get('/conversas',        [ChatController::class, 'listarConversas']);
     $group->get('/mensagens',        [ChatController::class, 'listarMensagens']);
     $group->post('/mensagens',       [ChatController::class, 'enviarMensagem']);
+    $group->delete('/mensagens/{id}',[ChatController::class, 'apagarMensagem']);
     $group->get('/usuarios/online',  [ChatController::class, 'listarUsuarios']);
 
     // Conversas
     $group->post('/conversas',                              [ChatController::class, 'criarConversa']);
+    $group->get('/conversas/{id}',                          [ChatController::class, 'obterConversa']);
     $group->patch('/conversas/{id}',                        [ChatController::class, 'editarConversa']);
+    $group->patch('/conversas/{id}/descricao',              [ChatController::class, 'atualizarDescricaoConversa']);
     $group->delete('/conversas/{id}',                       [ChatController::class, 'deletarConversa']);
     $group->post('/conversas/{id}/lida',                    [ChatController::class, 'marcarComoLida']);
     $group->get('/conversas/{id}/participantes',            [ChatController::class, 'listarParticipantes']);
@@ -86,7 +89,12 @@ $app->group('/api', function ($group) {
     $group->get('/chamados',               [ChamadoController::class, 'listar']);
     $group->patch('/chamados/{id}/status', [ChamadoController::class, 'atualizarStatus']);
     $group->patch('/chamados/{id}/classificar', [ChamadoController::class, 'classificar']);
+    $group->patch('/chamados/{id}/classificacao', [ChamadoController::class, 'atualizarClassificacao']);
     $group->patch('/chamados/{id}/finalizar', [ChamadoController::class, 'finalizar']);
+    $group->get('/chamados-taxonomias', [ChamadoController::class, 'listarTaxonomias']);
+    $group->get('/chamados-taxonomias/detalhe', [ChamadoController::class, 'listarTaxonomiasDetalhe']);
+    $group->post('/chamados-taxonomias', [ChamadoController::class, 'salvarTaxonomia']);
+    $group->delete('/chamados-taxonomias/{id}', [ChamadoController::class, 'removerTaxonomia']);
 
     // Admin — usuários
     $group->get('/admin/usuarios',         [AdminController::class, 'listarUsuarios']);

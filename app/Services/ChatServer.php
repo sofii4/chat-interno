@@ -5,6 +5,7 @@ namespace App\Services;
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 use SplObjectStorage;
+use React\EventLoop\Loop;
 
 class ChatServer implements MessageComponentInterface
 {
@@ -14,6 +15,11 @@ class ChatServer implements MessageComponentInterface
     {
         $this->clients = new SplObjectStorage();
         echo "Servidor de chat iniciado!\n";
+
+        // Busca mudancas geradas fora do WS (ex.: mensagens automaticas de chamado)
+        Loop::addPeriodicTimer(1.5, function (): void {
+            $this->sincronizarAtualizacoes();
+        });
     }
 
     public function onOpen(ConnectionInterface $conn): void
@@ -22,6 +28,8 @@ class ChatServer implements MessageComponentInterface
         $conn->userId     = null;
         $conn->userName   = null;
         $conn->conversaId = null;
+        $conn->lastSeenMessageId = 0;
+        $conn->lastSeenDeletionAt = date('Y-m-d H:i:s');
         echo "Nova conexão: #{$conn->resourceId} | Total: {$this->clients->count()}\n";
     }
 
@@ -36,6 +44,9 @@ class ChatServer implements MessageComponentInterface
                 $from->userId     = (int) ($data['user_id']    ?? 0);
                 $from->userName   = $data['user_nome']          ?? 'Anônimo';
                 $from->conversaId = (int) ($data['conversa_id'] ?? 0);
+                $from->lastSeenMessageId = $this->obterUltimaMensagemVisivelId($from->userId);
+                $from->lastSeenDeletionAt = date('Y-m-d H:i:s');
+                $this->atualizarPresenca($from->userId, true);
                 echo "Autenticado: {$from->userName} (#{$from->userId})\n";
                 $from->send(json_encode(['type' => 'auth_ok', 'userId' => $from->userId]));
                 break;
@@ -87,6 +98,7 @@ class ChatServer implements MessageComponentInterface
                     foreach ($this->clients as $client) {
                         if ($client->userId && in_array($client->userId, $participanteIds, true)) {
                             $client->send($payload);
+                            $client->lastSeenMessageId = max((int) ($client->lastSeenMessageId ?? 0), $msgId);
                         }
                     }
 
@@ -112,11 +124,98 @@ class ChatServer implements MessageComponentInterface
                     }
                 }
                 break;
+
+            case 'delete_message':
+                if (!$from->userId) return;
+
+                $mensagemId = (int) ($data['message_id'] ?? 0);
+                if ($mensagemId <= 0) {
+                    $from->send(json_encode(['type' => 'action_error', 'action' => 'delete_message', 'message' => 'Mensagem invalida']));
+                    return;
+                }
+
+                try {
+                    $pdo = getDbConnection();
+
+                    $stmtMsg = $pdo->prepare(
+                        'SELECT m.id, m.conversa_id, m.usuario_id
+                         FROM mensagens m
+                         INNER JOIN participantes p ON p.conversa_id = m.conversa_id AND p.usuario_id = ?
+                         WHERE m.id = ?
+                         LIMIT 1'
+                    );
+                    $stmtMsg->execute([$from->userId, $mensagemId]);
+                    $msg = $stmtMsg->fetch(\PDO::FETCH_ASSOC);
+
+                    if (!$msg) {
+                        $from->send(json_encode(['type' => 'action_error', 'action' => 'delete_message', 'message' => 'Mensagem nao encontrada']));
+                        return;
+                    }
+
+                    $stmtRole = $pdo->prepare('SELECT papel FROM usuarios WHERE id = ? LIMIT 1');
+                    $stmtRole->execute([$from->userId]);
+                    $papel = (string) ($stmtRole->fetchColumn() ?: 'usuario');
+
+                    $dono = (int) $msg['usuario_id'] === (int) $from->userId;
+                    if (!$dono && $papel !== 'admin') {
+                        $from->send(json_encode(['type' => 'action_error', 'action' => 'delete_message', 'message' => 'Sem permissao para apagar']));
+                        return;
+                    }
+
+                    $temExclusao = $this->columnExists($pdo, 'mensagens', 'excluida_em') && $this->columnExists($pdo, 'mensagens', 'excluida_por');
+                    if ($temExclusao) {
+                        $stmtDel = $pdo->prepare(
+                            'UPDATE mensagens
+                             SET conteudo = "",
+                                 arquivo_path = NULL,
+                                 arquivo_nome = NULL,
+                                 excluida_em = NOW(),
+                                 excluida_por = ?
+                             WHERE id = ?'
+                        );
+                        $stmtDel->execute([$from->userId, $mensagemId]);
+                    } else {
+                        $stmtDel = $pdo->prepare(
+                            "UPDATE mensagens
+                             SET conteudo = '[mensagem apagada]',
+                                 arquivo_path = NULL,
+                                 arquivo_nome = NULL
+                             WHERE id = ?"
+                        );
+                        $stmtDel->execute([$mensagemId]);
+                    }
+
+                    $conversaId = (int) $msg['conversa_id'];
+                    $stmtPart = $pdo->prepare('SELECT usuario_id FROM participantes WHERE conversa_id = ?');
+                    $stmtPart->execute([$conversaId]);
+                    $participanteIds = array_map('intval', array_column($stmtPart->fetchAll(\PDO::FETCH_ASSOC), 'usuario_id'));
+
+                    $payload = json_encode([
+                        'type' => 'message_deleted',
+                        'message_id' => $mensagemId,
+                        'conversa_id' => $conversaId,
+                        'deleted_at' => date('Y-m-d H:i:s'),
+                    ], JSON_UNESCAPED_UNICODE);
+
+                    foreach ($this->clients as $client) {
+                        if ($client->userId && in_array((int) $client->userId, $participanteIds, true)) {
+                            $client->send($payload);
+                            $client->lastSeenDeletionAt = date('Y-m-d H:i:s');
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    error_log('Erro delete_message WS: ' . $e->getMessage());
+                    $from->send(json_encode(['type' => 'action_error', 'action' => 'delete_message', 'message' => 'Erro ao apagar mensagem']));
+                }
+                break;
         }
     }
 
     public function onClose(ConnectionInterface $conn): void
     {
+        if (!empty($conn->userId)) {
+            $this->atualizarPresenca((int) $conn->userId, false);
+        }
         $this->clients->detach($conn);
         echo "Conexão fechada: #{$conn->resourceId} ({$conn->userName}) | Total: {$this->clients->count()}\n";
     }
@@ -125,5 +224,153 @@ class ChatServer implements MessageComponentInterface
     {
         error_log("WebSocket erro: " . $e->getMessage());
         $conn->close();
+    }
+
+    private function atualizarPresenca(int $userId, bool $online): void
+    {
+        if ($userId <= 0) {
+            return;
+        }
+
+        try {
+            $pdo = getDbConnection();
+            $pdo->exec("\n                CREATE TABLE IF NOT EXISTS user_presenca (\n                    usuario_id INT UNSIGNED PRIMARY KEY,\n                    online TINYINT(1) NOT NULL DEFAULT 0,\n                    last_seen TIMESTAMP NULL DEFAULT NULL,\n                    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n                    CONSTRAINT fk_user_presenca_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE\n                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci\n            ");
+
+            $stmt = $pdo->prepare("\n                INSERT INTO user_presenca (usuario_id, online, last_seen)\n                VALUES (?, ?, NOW())\n                ON DUPLICATE KEY UPDATE\n                    online = VALUES(online),\n                    last_seen = NOW()\n            ");
+            $stmt->execute([$userId, $online ? 1 : 0]);
+        } catch (\Throwable $e) {
+            error_log('Falha ao atualizar presenca: ' . $e->getMessage());
+        }
+    }
+
+    private function sincronizarAtualizacoes(): void
+    {
+        foreach ($this->clients as $client) {
+            if (empty($client->userId)) {
+                continue;
+            }
+
+            try {
+                $this->sincronizarNovasMensagens($client);
+                $this->sincronizarApagamentos($client);
+            } catch (\Throwable $e) {
+                error_log('Falha na sincronizacao WS: ' . $e->getMessage());
+            }
+        }
+    }
+
+    private function sincronizarNovasMensagens(ConnectionInterface $client): void
+    {
+        $pdo = getDbConnection();
+        $ultimoId = (int) ($client->lastSeenMessageId ?? 0);
+
+        $stmt = $pdo->prepare(
+            'SELECT m.id, m.conteudo, m.arquivo_path, m.arquivo_nome, m.criado_em,
+                    u.id AS usuario_id, u.nome AS usuario_nome,
+                    m.conversa_id
+             FROM mensagens m
+             INNER JOIN usuarios u ON u.id = m.usuario_id
+             INNER JOIN participantes p ON p.conversa_id = m.conversa_id AND p.usuario_id = ?
+             WHERE m.id > ?
+               AND m.criado_em >= p.entrou_em
+             ORDER BY m.id ASC
+             LIMIT 200'
+        );
+        $stmt->execute([(int) $client->userId, $ultimoId]);
+        $novas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        if (!$novas) {
+            return;
+        }
+
+        foreach ($novas as $msg) {
+            $client->send(json_encode([
+                'type' => 'new_message',
+                'message' => $msg,
+            ], JSON_UNESCAPED_UNICODE));
+
+            $msgId = (int) ($msg['id'] ?? 0);
+            if ($msgId > 0) {
+                $client->lastSeenMessageId = max((int) $client->lastSeenMessageId, $msgId);
+            }
+        }
+    }
+
+    private function sincronizarApagamentos(ConnectionInterface $client): void
+    {
+        $pdo = getDbConnection();
+
+        if (!$this->columnExists($pdo, 'mensagens', 'excluida_em')) {
+            return;
+        }
+
+        $ultimoApagamento = (string) ($client->lastSeenDeletionAt ?? '1970-01-01 00:00:00');
+
+        $stmt = $pdo->prepare(
+            'SELECT m.id, m.conversa_id, m.excluida_em
+             FROM mensagens m
+             INNER JOIN participantes p ON p.conversa_id = m.conversa_id AND p.usuario_id = ?
+             WHERE m.excluida_em IS NOT NULL
+               AND m.excluida_em > ?
+               AND m.criado_em >= p.entrou_em
+             ORDER BY m.excluida_em ASC
+             LIMIT 200'
+        );
+        $stmt->execute([(int) $client->userId, $ultimoApagamento]);
+        $apagadas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        if (!$apagadas) {
+            return;
+        }
+
+        foreach ($apagadas as $apagada) {
+            $client->send(json_encode([
+                'type' => 'message_deleted',
+                'message_id' => (int) ($apagada['id'] ?? 0),
+                'conversa_id' => (int) ($apagada['conversa_id'] ?? 0),
+                'deleted_at' => (string) ($apagada['excluida_em'] ?? ''),
+            ], JSON_UNESCAPED_UNICODE));
+        }
+
+        $ultima = end($apagadas);
+        if ($ultima && !empty($ultima['excluida_em'])) {
+            $client->lastSeenDeletionAt = (string) $ultima['excluida_em'];
+        }
+    }
+
+    private function obterUltimaMensagemVisivelId(int $userId): int
+    {
+        if ($userId <= 0) {
+            return 0;
+        }
+
+        try {
+            $pdo = getDbConnection();
+            $stmt = $pdo->prepare(
+                'SELECT COALESCE(MAX(m.id), 0)
+                 FROM mensagens m
+                 INNER JOIN participantes p ON p.conversa_id = m.conversa_id
+                 WHERE p.usuario_id = ?
+                   AND m.criado_em >= p.entrou_em'
+            );
+            $stmt->execute([$userId]);
+            return (int) $stmt->fetchColumn();
+        } catch (\Throwable $e) {
+            error_log('Falha ao obter ultima mensagem visivel: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    private function columnExists(\PDO $pdo, string $table, string $column): bool
+    {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*)
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = ?
+               AND COLUMN_NAME = ?'
+        );
+        $stmt->execute([$table, $column]);
+        return ((int) $stmt->fetchColumn()) > 0;
     }
 }

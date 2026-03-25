@@ -88,9 +88,62 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 ALTER TABLE chamados 
 ADD COLUMN categoria VARCHAR(50) NULL AFTER titulo,
-ADD COLUMN subcategoria VARCHAR(50) NULL AFTER categoria;
+ADD COLUMN subcategoria VARCHAR(50) NULL AFTER categoria,
+ADD COLUMN resolvido_por INT UNSIGNED NULL AFTER atribuido_a,
+ADD CONSTRAINT fk_chamados_resolvido_por FOREIGN KEY (resolvido_por) REFERENCES usuarios(id) ON DELETE SET NULL;
 
 -- Atualizando os status para incluir a lógica de fluxo
 ALTER TABLE chamados 
 MODIFY COLUMN status ENUM('aberto', 'classificado', 'em_andamento', 'resolvido', 'cancelado') 
 NOT NULL DEFAULT 'aberto';
+
+CREATE TABLE IF NOT EXISTS chamado_taxonomias (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    categoria VARCHAR(100) NOT NULL,
+    subcategoria VARCHAR(100) NOT NULL,
+    ativo TINYINT(1) NOT NULL DEFAULT 1,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_categoria_subcategoria (categoria, subcategoria)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO chamado_taxonomias (categoria, subcategoria) VALUES
+('ERP', 'Financeiro'),
+('ERP', 'Fiscal'),
+('ERP', 'Contabilidade'),
+('ERP', 'Vendas'),
+('ERP', 'Estoque'),
+('Infraestrutura', 'Servidor'),
+('Infraestrutura', 'Backup'),
+('Infraestrutura', 'Cloud'),
+('Infraestrutura', 'Banco de Dados'),
+('Engenharia', 'AutoCAD'),
+('Engenharia', 'Solidworks'),
+('Engenharia', 'Revisão Técnica'),
+('Redes', 'Wi-Fi'),
+('Redes', 'Cabeamento'),
+('Redes', 'VPN'),
+('Segurança', 'Antivírus'),
+('Segurança', 'Firewall'),
+('Segurança', 'Câmeras'),
+('Hardware', 'Desktop/Notebook'),
+('Hardware', 'Impressora'),
+('Hardware', 'Periféricos'),
+('Acessos', 'Reset de Senha'),
+('Acessos', 'Novo Usuário'),
+('Acessos', 'Permissões');
+
+ALTER TABLE conversas
+ADD COLUMN IF NOT EXISTS descricao TEXT NULL AFTER nome;
+
+CREATE TABLE IF NOT EXISTS user_presenca (
+    usuario_id INT UNSIGNED PRIMARY KEY,
+    online TINYINT(1) NOT NULL DEFAULT 0,
+    last_seen TIMESTAMP NULL DEFAULT NULL,
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_presenca_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE mensagens
+ADD COLUMN IF NOT EXISTS excluida_em TIMESTAMP NULL DEFAULT NULL AFTER arquivo_nome,
+ADD COLUMN IF NOT EXISTS excluida_por INT UNSIGNED NULL AFTER excluida_em,
+ADD CONSTRAINT fk_mensagens_excluida_por FOREIGN KEY (excluida_por) REFERENCES usuarios(id) ON DELETE SET NULL;
