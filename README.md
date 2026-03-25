@@ -1,169 +1,175 @@
 # Chat Interno + Sistema de Chamados
 
-Sistema interno de comunicação empresarial com chat em tempo real e chamados de emergência para TI.
-
----
+Sistema interno de comunicação empresarial com chat em tempo real e fluxo completo de chamados para TI, com foco em triagem, classificação, histórico e gestão de taxonomias no dashboard.
 
 ## Sumário
 
-- [Stack Técnica](#stack-técnica)
-- [Estrutura do Projeto](#estrutura-do-projeto)
-- [Banco de Dados](#banco-de-dados)
+- [Stack técnica](#stack-técnica)
+- [Funcionalidades principais](#funcionalidades-principais)
+- [Novidades do dashboard TI](#novidades-do-dashboard-ti)
+- [Banco de dados](#banco-de-dados)
 - [APIs REST](#apis-rest)
 - [WebSocket](#websocket)
-- [Como Rodar](#como-rodar)
-
----
+- [Como rodar](#como-rodar)
+- [Observações de arquitetura](#observações-de-arquitetura)
 
 ## Stack Técnica
 
 | Camada | Tecnologia | Função |
 |---|---|---|
-| Backend | PHP 8.1 | Linguagem principal |
-| Framework | Slim 4 | Roteamento HTTP (micro-framework) |
+| Backend | PHP 8.1+ | Linguagem principal |
+| Framework | Slim 4 | Roteamento HTTP |
 | Tempo real | Ratchet | Servidor WebSocket (porta 8080) |
 | Banco | MySQL 8 | Persistência de dados |
-| ORM/Query | PDO | Conexão segura com prepared statements |
-| Dependências | Composer | Gerenciador de pacotes (PSR-4) |
+| Acesso a dados | PDO | Queries com prepared statements |
+| Dependências | Composer | Gerenciador de pacotes |
 | Variáveis | phpdotenv | Configurações via `.env` |
-| Frontend | Tailwind CSS (CDN) | Estilização responsiva |
-| Frontend | JavaScript Vanilla | Sem frameworks JS |
-| Servidor web | Apache 2.4 + mod_rewrite | Serve HTTP e redireciona para `index.php` |
-| Versionamento | Git + GitHub | Controle de versão por branches |
+| Frontend | Tailwind CSS (CDN) | UI responsiva |
+| Frontend | JavaScript Vanilla | Lógica de interface |
+| Servidor web | Apache 2.4 + mod_rewrite | Entrega da aplicação |
 
----
+## Funcionalidades Principais
 
-## Estrutura do Projeto
+- Chat em tempo real com fallback HTTP quando WebSocket estiver offline.
+- Conversas privadas, em grupo e por setor.
+- Chamados com upload de anexos e classificação por prioridade/categoria/subcategoria.
+- Painel admin para gestão de usuários e setores.
+- Dashboard TI dedicado para triagem e resolução operacional dos chamados.
 
-```
-/projeto-chat/
-├── app/
-│   ├── Controllers/
-│   │   ├── AuthController.php       # Login, logout, sessão
-│   │   ├── ChatController.php       # Conversas, mensagens, participantes
-│   │   ├── ChamadoController.php    # Chamados de emergência e anexos
-│   │   └── AdminController.php      # Gestão de usuários e setores
-│   ├── Middleware/
-│   │   ├── AuthMiddleware.php       # Verifica sessão PHP ativa
-│   │   └── AdminMiddleware.php      # Verifica papel = 'admin'
-│   ├── Services/
-│   │   ├── ChatServer.php           # Lógica do servidor Ratchet (WebSocket)
-│   │   └── FileUploadService.php    # Upload seguro de arquivos
-│   ├── Models/
-│   │   ├── Usuario.php
-│   │   ├── Mensagem.php
-│   │   └── Chamado.php
-│   └── Helpers/
-│       └── Response.php             # Respostas JSON padronizadas
-├── bin/
-│   └── chat-server.php              # Inicia o servidor WebSocket
-├── config/
-│   ├── database.php                 # Conexão PDO (singleton)
-│   └── schema.sql                   # Script de criação do banco
-├── public/                          # Único diretório exposto pelo Apache
-│   ├── index.php                    # Front controller (todas as rotas passam aqui)
-│   ├── .htaccess                    # Rewrite rules do Slim
-│   └── uploads/                     # Arquivos enviados por usuários
-│       └── .htaccess                # Bloqueia execução de PHP nos uploads
-├── templates/
-│   ├── login.php                    # Página de login
-│   ├── chat.php                     # Interface principal do chat
-│   └── admin.php                    # Painel administrativo
-├── .env                             # Credenciais (nunca commitar)
-├── .gitignore
-└── composer.json
-```
+## Dashboard TI
 
----
+### Organização em 3 áreas
+
+- Coluna de triagem para chamados abertos.
+- Grade de chamados documentados (classificados).
+- Painel lateral de histórico (resolvidos), com opção de minimizar/expandir.
+
+### Filtros e ordenação
+
+- Filtro por categoria (setor).
+- Filtro dependente por subcategoria (carrega conforme a categoria selecionada).
+- Ordenação dos chamados documentados por urgência quando nenhum filtro de data está selecionado (`critica` -> `alta` -> `media` -> `baixa`).
+- Ordenação por data quando selecionado no filtro (`Mais recentes` ou `Mais antigos`).
+
+### Fluxo de classificação e detalhamento
+
+- Modal de classificação com descrição completa, prioridade, categoria e subcategoria.
+- Modal de detalhes com ações rápidas para editar classificação, chamar setor e finalizar chamado.
+- O botão chamar setor redireciona para chat privado com o solicitante.
+- Exibição de data no card e de "resolvido por" no histórico.
+
+### Anexos (dashboard e chat)
+
+- Pré-visualização de imagem no modal (quando o anexo for imagem).
+- Botões de visualizar e baixar anexo nos modais.
+- Suporte a anexos no cadastro do chamado via chat.
+- Compatibilidade com campos de upload `anexos` e `anexos[]`.
+- Retorno de erros por arquivo em `anexo_erros` para diagnóstico no frontend.
+
+### Finalização com notificação automática
+
+- Ao finalizar um chamado, o sistema tenta obter/criar conversa privada com o solicitante.
+- Uma mensagem automática é enviada no chat do usuário avisando a conclusão do chamado.
+
+### Gestão de taxonomias (categorias/subcategorias)
+
+- Modal "Gerenciar categorias" no dashboard.
+- Cadastro e remoção de categoria/subcategoria via API.
+- Leitura dinâmica para preencher filtros e selects de classificação.
 
 ## Banco de Dados
 
 ### Tabelas
 
 ```sql
-setores          -- Grupos organizacionais da empresa
-usuarios         -- Usuários com papel (admin, ti, usuario)
-conversas        -- Salas de chat (privada, grupo, setor)
-participantes    -- Relacionamento usuário <-> conversa (com ultima_leitura)
-mensagens        -- Histórico de mensagens com suporte a anexos
-chamados         -- Chamados de emergência para TI
-chamado_anexos   -- Arquivos anexados aos chamados
+setores             -- Estrutura organizacional
+usuarios            -- Usuários e papéis (admin, ti, usuario)
+conversas           -- Conversas (privada, grupo, setor)
+participantes       -- Usuário x conversa
+mensagens           -- Mensagens e anexos
+chamados            -- Chamados de suporte
+chamado_anexos      -- Anexos dos chamados
+chamado_taxonomias  -- Categorias/subcategorias usadas no dashboard
 ```
 
 ### Detalhes importantes
 
-- `participantes.ultima_leitura` — controla o contador de mensagens não lidas por conversa por usuário
-- `conversas.tipo` — pode ser `privada`, `grupo` ou `setor`
-- Em conversas privadas o campo `nome` é `NULL` — o nome exibido é buscado dinamicamente do outro participante
-- Senhas armazenadas com `password_hash()` bcrypt (cost 12), nunca em texto puro
-
----
+- `participantes.ultima_leitura` controla não lidas por conversa.
+- Em conversa privada, `conversas.nome` pode ser `NULL`.
+- Senhas são armazenadas com `password_hash`.
+- Na listagem de chamados, o backend retorna metadados do primeiro anexo para exibição rápida no dashboard.
 
 ## APIs REST
 
-Todas as rotas abaixo exigem sessão autenticada (`AuthMiddleware`). Rotas `/api/admin/*` exigem papel `admin` (`AdminMiddleware`).
+Todas as rotas abaixo exigem sessão autenticada (`AuthMiddleware`).
 
 ### Chat
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/api/conversas` | Lista conversas do usuário logado com contagem de não lidas |
-| `POST` | `/api/conversas` | Cria grupo (admin) ou conversa privada (todos) |
-| `DELETE` | `/api/conversas/{id}` | Deleta grupo — somente admin |
-| `POST` | `/api/conversas/{id}/lida` | Marca conversa como lida (zera badge) |
-| `POST` | `/api/conversas/{id}/participantes` | Adiciona participante a um grupo — somente admin |
-| `GET` | `/api/mensagens?conversa_id=X` | Histórico paginado (50 por página) |
-| `POST` | `/api/mensagens` | Envia mensagem via HTTP (fallback quando WebSocket offline) |
-| `GET` | `/api/usuarios/online` | Lista usuários para sidebar e modais |
+| `GET` | `/api/conversas` | Lista conversas do usuário |
+| `POST` | `/api/conversas` | Cria conversa (grupo/privada) |
+| `GET` | `/api/conversas/{id}` | Detalhes de conversa |
+| `PATCH` | `/api/conversas/{id}` | Edita metadados da conversa |
+| `PATCH` | `/api/conversas/{id}/descricao` | Atualiza descrição |
+| `DELETE` | `/api/conversas/{id}` | Remove conversa |
+| `POST` | `/api/conversas/{id}/lida` | Marca como lida |
+| `GET` | `/api/conversas/{id}/participantes` | Lista participantes |
+| `POST` | `/api/conversas/{id}/participantes` | Adiciona participante |
+| `DELETE` | `/api/conversas/{id}/participantes/{uid}` | Remove participante |
+| `GET` | `/api/mensagens` | Lista mensagens por conversa |
+| `POST` | `/api/mensagens` | Envia mensagem (fallback HTTP) |
+| `DELETE` | `/api/mensagens/{id}` | Apaga mensagem |
+| `GET` | `/api/usuarios/online` | Lista usuários online |
 
 ### Chamados
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/api/chamados` | Abre chamado com título, descrição e anexos |
-| `GET` | `/api/chamados` | TI/admin veem todos; usuário comum vê apenas os seus |
-| `PATCH` | `/api/chamados/{id}/status` | Atualiza status — somente TI e admin |
+| `POST` | `/api/chamados` | Abre chamado com anexos |
+| `GET` | `/api/chamados` | Lista chamados (escopo por papel) |
+| `PATCH` | `/api/chamados/{id}/status` | Atualiza status |
+| `PATCH` | `/api/chamados/{id}/classificar` | Classifica chamado aberto |
+| `PATCH` | `/api/chamados/{id}/classificacao` | Atualiza classificação existente |
+| `PATCH` | `/api/chamados/{id}/finalizar` | Finaliza e dispara mensagem automática |
+| `GET` | `/api/chamados-taxonomias` | Lista mapa de categorias/subcategorias |
+| `GET` | `/api/chamados-taxonomias/detalhe` | Lista taxonomias com ID |
+| `POST` | `/api/chamados-taxonomias` | Cria/reativa taxonomia |
+| `DELETE` | `/api/chamados-taxonomias/{id}` | Inativa taxonomia |
 
 ### Admin
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/api/admin/usuarios` | Lista todos os usuários |
-| `POST` | `/api/admin/usuarios` | Cria usuário com senha hasheada |
-| `PATCH` | `/api/admin/usuarios/{id}` | Edita nome, papel, setor, senha ou status |
-| `DELETE` | `/api/admin/usuarios/{id}` | Desativa usuário (não deleta do banco) |
-| `GET` | `/api/admin/setores` | Lista setores com contagem de usuários |
+| `GET` | `/api/admin/usuarios` | Lista usuários |
+| `POST` | `/api/admin/usuarios` | Cria usuário |
+| `PATCH` | `/api/admin/usuarios/{id}` | Atualiza usuário |
+| `DELETE` | `/api/admin/usuarios/{id}` | Desativa usuário |
+| `GET` | `/api/admin/setores` | Lista setores |
 | `POST` | `/api/admin/setores` | Cria setor |
-| `DELETE` | `/api/admin/setores/{id}` | Deleta setor (bloqueia se tiver usuários ativos) |
-
----
+| `DELETE` | `/api/admin/setores/{id}` | Remove setor |
 
 ## WebSocket
 
-O servidor WebSocket roda como um processo PHP separado na porta `8080` via Ratchet.
+Servidor de tempo real executado em processo separado (porta `8080`).
 
-**Iniciar:**
 ```bash
 php bin/chat-server.php
 ```
 
-### Eventos
+### Eventos principais
 
 | Direção | Evento | Descrição |
 |---|---|---|
-| cliente → servidor | `auth` | Autentica a conexão com `user_id` e `user_nome` |
-| servidor → cliente | `auth_ok` | Confirma autenticação |
-| cliente → servidor | `join` | Entra em uma conversa (muda de sala) |
-| cliente → servidor | `send_message` | Envia mensagem — servidor salva no banco e faz broadcast |
-| servidor → cliente | `new_message` | Entregue a todos os participantes conectados da conversa |
-| cliente → servidor | `typing` | Usuário está digitando |
-| servidor → cliente | `typing` | Exibe "X está digitando..." por 2 segundos |
+| cliente -> servidor | `auth` | Autentica conexão |
+| servidor -> cliente | `auth_ok` | Confirma autenticação |
+| cliente -> servidor | `join` | Entra na conversa |
+| cliente -> servidor | `send_message` | Envia mensagem |
+| servidor -> cliente | `new_message` | Entrega de nova mensagem |
+| cliente -> servidor | `typing` | Usuário digitando |
+| servidor -> cliente | `typing` | Broadcast de digitação |
 
-**Reconexão automática:** o cliente tenta reconectar a cada 3 segundos se a conexão cair.
-
-**Fallback HTTP:** se o WebSocket estiver offline, o envio de mensagens cai automaticamente para `POST /api/mensagens` via Fetch API.
-
----
+Reconexão automática no frontend e fallback para `POST /api/mensagens` quando necessário.
 
 ## Como Rodar
 
@@ -176,30 +182,33 @@ sudo apt install php8.3 php8.3-mysql php8.3-zip php8.3-sockets apache2 libapache
 ### Instalação
 
 ```bash
-# 1. Clonar o repositório
 git clone https://github.com/sofii4/chat-interno.git
 cd chat-interno
 
-# 2. Instalar dependências PHP
 composer install
 
-# 3. Configurar variáveis de ambiente
 cp .env.example .env
-# Editar .env com as credenciais do banco
+# editar .env
 
-# 4. Criar banco e executar schema
 mysql -u root -p -e "CREATE DATABASE chat_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 mysql -u root -p chat_db < config/schema.sql
 
-# 5. Configurar Apache (apontar DocumentRoot para /public)
 sudo a2enmod rewrite
 sudo systemctl restart apache2
 ```
 
-### Iniciar o servidor WebSocket
+### Permissões para upload (importante)
+
+Se o Apache roda com usuário `www-data`, garanta permissão de escrita em `public/uploads`:
 
 ```bash
-# Em um terminal separado (ou via Supervisor em produção)
+sudo chown -R www-data:www-data public/uploads
+sudo chmod -R 775 public/uploads
+```
+
+### Subir WebSocket
+
+```bash
 php bin/chat-server.php
 ```
 
@@ -207,22 +216,14 @@ php bin/chat-server.php
 
 | URL | Descrição |
 |---|---|
-| `http://localhost/login` | Página de login |
-| `http://localhost/chat` | Interface do chat |
-| `http://localhost/admin` | Painel admin (requer papel admin) |
-
-**Usuário padrão criado pelo schema:**
-- E-mail: `admin@empresa.com`
-- Senha: `password` ← **trocar imediatamente em produção**
-
----
+| `http://localhost/login` | Login |
+| `http://localhost/chat` | Chat |
+| `http://localhost/dashboard-ti` | Dashboard TI |
+| `http://localhost/admin` | Painel admin |
 
 ## Observações de Arquitetura
 
-**Dois servidores em paralelo.** O Apache (porta 80) serve o HTML e as APIs REST. O Ratchet (porta 8080) mantém as conexões WebSocket. O browser conecta nos dois simultaneamente.
-
-**Histórico via HTTP, tempo real via WebSocket.** Ao abrir uma conversa, o JS faz `GET /api/mensagens` para buscar o histórico. Apenas mensagens novas trafegam pelo WebSocket — isso evita sobrecarga na conexão persistente.
-
-**Notificações offline via banco.** A coluna `participantes.ultima_leitura` registra quando o usuário leu cada conversa pela última vez. Ao carregar as conversas, a API conta mensagens com `criado_em > ultima_leitura` e retorna o badge com o número correto mesmo para usuários que estavam deslogados.
-
-**Chamados preparados para integração com IA.** A prioridade dos chamados não é definida pelo usuário — o campo existe no banco para ser preenchido futuramente por um agente de IA que classifica automaticamente a urgência com base no título e descrição.
+- Apache (HTTP + APIs) e Ratchet (WebSocket) rodam em paralelo.
+- Histórico de mensagens via HTTP; novas mensagens via WebSocket.
+- Finalização de chamado mantém rastreabilidade: altera status, registra resolvedor e notifica o usuário no chat.
+- Upload valida MIME real e tamanho máximo, e retorna erros detalhados por arquivo.
