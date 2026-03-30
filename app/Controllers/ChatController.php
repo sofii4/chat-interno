@@ -37,10 +37,17 @@ class ChatController
                     AND m.criado_em >= p.entrou_em
                  AND (p.ultima_leitura IS NULL OR m.criado_em > p.ultima_leitura)
                 ) AS nao_lidas
+                ,COALESCE(
+                    (SELECT MAX(m2.criado_em)
+                     FROM mensagens m2
+                     WHERE m2.conversa_id = c.id
+                       AND m2.criado_em >= p.entrou_em),
+                    c.criado_em
+                ) AS ultima_atividade
             FROM conversas c
             INNER JOIN participantes p ON p.conversa_id = c.id
             WHERE p.usuario_id = ?
-            ORDER BY c.tipo ASC, c.criado_em ASC
+            ORDER BY ultima_atividade DESC, c.id DESC
         ");
         $stmt->execute([$userId, $userId, $userId]);
 
@@ -101,14 +108,19 @@ class ChatController
 
         $conversaId = (int) ($data['conversa_id'] ?? 0);
         $conteudo   = trim($data['conteudo'] ?? '');
-        $arquivo    = $files['arquivo'] ?? null;
+        $arquivosBrutos = $files['arquivos'] ?? $files['arquivos[]'] ?? $files['arquivo'] ?? null;
+        $arquivos = $this->normalizarArquivosUpload($arquivosBrutos);
 
-        if (!$conversaId || ($conteudo === '' && !$arquivo)) {
+        if (!$conversaId || ($conteudo === '' && count($arquivos) === 0)) {
             return Json::erro($response, 'conversa_id e conteudo ou arquivo são obrigatórios');
         }
 
         if (mb_strlen($conteudo) > 5000) {
             return Json::erro($response, 'Mensagem muito longa (máximo 5000 caracteres)');
+        }
+
+        if (count($arquivos) > 10) {
+            return Json::erro($response, 'Limite de 10 anexos por envio');
         }
 
         $pdo = getDbConnection();
@@ -119,29 +131,42 @@ class ChatController
             return Json::erro($response, 'Acesso negado', 403);
         }
 
-        $arquivoPath = null;
-        $arquivoNome = null;
-        if ($arquivo && $arquivo->getError() !== UPLOAD_ERR_NO_FILE) {
-            if ($arquivo->getError() !== UPLOAD_ERR_OK) {
-                return Json::erro($response, 'Falha no upload do arquivo');
+        $mensagensCriadas = [];
+        $textoFoiUsado = false;
+
+        foreach ($arquivos as $arquivo) {
+            if ($arquivo->getError() === UPLOAD_ERR_NO_FILE) {
+                continue;
             }
+
+            if ($arquivo->getError() !== UPLOAD_ERR_OK) {
+                return Json::erro($response, 'Falha no upload do arquivo: ' . $arquivo->getClientFilename());
+            }
+
             [$arquivoPath, $arquivoNome] = $this->salvarArquivoMensagem($arquivo, $conversaId);
+            $conteudoMensagem = (!$textoFoiUsado && $conteudo !== '') ? $conteudo : '';
+
+            $stmt = $pdo->prepare("INSERT INTO mensagens (conversa_id, usuario_id, conteudo, arquivo_path, arquivo_nome) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$conversaId, $userId, $conteudoMensagem, $arquivoPath, $arquivoNome]);
+            $msgId = (int) $pdo->lastInsertId();
+            $mensagensCriadas[] = $this->buscarMensagemPorId($pdo, $msgId);
+            if ($conteudoMensagem !== '') {
+                $textoFoiUsado = true;
+            }
         }
 
-        $stmt = $pdo->prepare("INSERT INTO mensagens (conversa_id, usuario_id, conteudo, arquivo_path, arquivo_nome) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$conversaId, $userId, $conteudo, $arquivoPath, $arquivoNome]);
-        $msgId = (int) $pdo->lastInsertId();
+        if (count($mensagensCriadas) === 0 || ($conteudo !== '' && !$textoFoiUsado)) {
+            $stmt = $pdo->prepare("INSERT INTO mensagens (conversa_id, usuario_id, conteudo, arquivo_path, arquivo_nome) VALUES (?, ?, ?, NULL, NULL)");
+            $stmt->execute([$conversaId, $userId, $conteudo]);
+            $msgId = (int) $pdo->lastInsertId();
+            $mensagensCriadas[] = $this->buscarMensagemPorId($pdo, $msgId);
+        }
 
-        $nova = $pdo->prepare("
-            SELECT m.id, m.conteudo, m.arquivo_path, m.arquivo_nome, m.criado_em,
-                   u.id AS usuario_id, u.nome AS usuario_nome
-            FROM mensagens m
-            INNER JOIN usuarios u ON u.id = m.usuario_id
-            WHERE m.id = ?
-        ");
-        $nova->execute([$msgId]);
+        if (count($mensagensCriadas) === 1) {
+            return Json::json($response, $mensagensCriadas[0], 201);
+        }
 
-        return Json::json($response, $nova->fetch(), 201);
+        return Json::json($response, ['mensagens' => $mensagensCriadas], 201);
     }
 
     // DELETE /api/mensagens/{id}
@@ -483,10 +508,24 @@ class ChatController
     private function salvarArquivoMensagem($arquivo, int $conversaId): array
     {
         $mimesPermitidos = [
-            'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+            'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain',
+            'audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/wav', 'audio/ogg',
+            'video/mp4', 'video/webm', 'video/quicktime',
+            'application/zip', 'application/x-rar-compressed', 'application/octet-stream',
+        ];
+        $extensoesPermitidas = [
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp',
+            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+            'txt', 'csv', 'zip', 'rar', '7z',
+            'mp3', 'wav', 'ogg', 'm4a', 'mp4', 'mov', 'webm',
         ];
 
         $max = (int) ($_ENV['UPLOAD_MAX_SIZE'] ?? 10485760);
@@ -501,12 +540,13 @@ class ChatController
 
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
         $mime = $finfo->file($tmpPath);
-        if (!in_array($mime, $mimesPermitidos, true)) {
+        $orig = (string) $arquivo->getClientFilename();
+        $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+
+        if (!in_array($mime, $mimesPermitidos, true) && !in_array($ext, $extensoesPermitidas, true)) {
             throw new \RuntimeException('Tipo de arquivo não permitido');
         }
 
-        $orig = (string) $arquivo->getClientFilename();
-        $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
         if ($ext === '') {
             $ext = $mime === 'application/pdf' ? 'pdf' : 'bin';
         }
@@ -520,5 +560,29 @@ class ChatController
         $arquivo->moveTo($destDir . $novoNome);
 
         return ['chat-mensagens/' . $conversaId . '/' . $novoNome, $orig !== '' ? $orig : $novoNome];
+    }
+
+    private function buscarMensagemPorId(\PDO $pdo, int $msgId): array
+    {
+        $nova = $pdo->prepare("
+            SELECT m.id, m.conteudo, m.arquivo_path, m.arquivo_nome, m.criado_em,
+                   u.id AS usuario_id, u.nome AS usuario_nome, m.conversa_id
+            FROM mensagens m
+            INNER JOIN usuarios u ON u.id = m.usuario_id
+            WHERE m.id = ?
+        ");
+        $nova->execute([$msgId]);
+        return (array) $nova->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    private function normalizarArquivosUpload($arquivosBrutos): array
+    {
+        if ($arquivosBrutos === null) {
+            return [];
+        }
+        if (is_array($arquivosBrutos)) {
+            return $arquivosBrutos;
+        }
+        return [$arquivosBrutos];
     }
 }

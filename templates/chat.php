@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Interno</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
     <style>
         #messages { scroll-behavior: smooth; }
         .msg-enter { animation: fadeUp .2s ease; }
@@ -140,7 +141,7 @@
                           d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                 </svg>
             </button>
-            <input id="msg-file-input" type="file" class="hidden" accept="image/*,.pdf,.doc,.docx" onchange="atualizarPreviewAnexoMensagem()">
+            <input id="msg-file-input" type="file" multiple class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.mp3,.wav,.ogg,.m4a,.mp4,.mov,.webm" onchange="atualizarPreviewAnexoMensagem()">
             <textarea id="msg-input" rows="1"
                       placeholder="Selecione uma conversa..."
                       class="flex-1 bg-transparent text-sm text-white placeholder-gray-500 resize-none focus:outline-none max-h-32"
@@ -159,8 +160,8 @@
                 </svg>
             </button>
         </div>
-        <div id="emoji-picker" class="hidden mt-2 ml-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-sm">
-            <div id="emoji-picker-grid" class="max-h-40 overflow-y-auto pr-1 grid grid-cols-10 gap-1"></div>
+        <div id="emoji-picker" class="hidden mt-2 ml-1 px-2 py-2 bg-gray-800 border border-gray-700 rounded-xl text-sm">
+            <emoji-picker id="emoji-picker-element" class="w-full" style="--background: #111827; --border-color: #374151;"></emoji-picker>
         </div>
         <div id="msg-file-preview" class="hidden mt-2 ml-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-xs text-gray-300"></div>
         <p class="text-xs text-gray-600 mt-2 ml-1">Enter para enviar · Shift+Enter para nova linha</p>
@@ -209,7 +210,7 @@
                               d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
                     <span id="label-anexo-chamado" class="text-sm text-gray-400">Clique para selecionar arquivos</span>
-                    <input id="input-anexo-chamado" type="file" multiple class="hidden" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+                    <input id="input-anexo-chamado" type="file" multiple class="hidden" accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.txt,.step,.stp,.exe">
                 </label>
             </div>
         </div>
@@ -433,13 +434,6 @@ let notificacoesInicializadas = false;
 let conversaAtualTipo = null;
 let paginaMensagensAtual = 1;
 let podeCarregarMaisMensagens = false;
-const EMOJIS_POPULARES = [
-    '😀','😁','😂','🤣','😊','😉','😍','😘','😎','🤔','😢','😭','😡','🥳','😴','🤯',
-    '👍','👎','👏','🙌','🙏','💪','🤝','👌','🤌','✌️','🤞','👀','💡','✅','❌','⚠️',
-    '🎉','🔥','⭐','💯','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','💬','📌',
-    '📎','📢','📅','⏰','🛠️','💻','🖨️','📱','🌐','🔒','🔓','📈','📉','🚀','🎯','🧠'
-];
-
 // ── WebSocket ─────────────────────────────────
 function conectarWS() {
     const host = window.location.hostname;
@@ -461,9 +455,20 @@ function conectarWS() {
             case 'auth_ok':
                 console.log('Autenticado no WS como userId:', data.userId);
                 break;
+            case 'new_conversation':
+                carregarConversas().catch(function() {});
+                if (data.conversa && data.conversa.nome) {
+                    notificarMensagem('Novo chat iniciado', 'Você foi adicionado(a) em "' + data.conversa.nome + '".');
+                }
+                break;
             case 'new_message':
                 if (!data.message || !data.message.id) break;
                 if (document.querySelector('[data-msg-id="' + data.message.id + '"]')) break;
+
+                // Se a mensagem é de uma conversa desconhecida, recarrega a lista
+                if (!document.querySelector('[data-conversa-id="' + data.message.conversa_id + '"]')) {
+                    carregarConversas().catch(function() {});
+                }
 
                 if (data.message.conversa_id == conversaAtualId) {
                     renderizarMensagem(data.message);
@@ -507,7 +512,7 @@ function conectarWS() {
 
 // ── Inicialização ─────────────────────────────
 document.addEventListener('DOMContentLoaded', async function() {
-    popularEmojiPicker();
+    configurarEmojiPicker();
     conectarWS();
     await carregarConversas();
     await abrirConversaViaUrl();
@@ -837,21 +842,27 @@ function enviarMensagem() {
     const fileInput = document.getElementById('msg-file-input');
     const preview = document.getElementById('msg-file-preview');
     const texto = input.value.trim();
-    const arquivo = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-    if (!texto && !arquivo) return;
+    const arquivos = fileInput && fileInput.files ? Array.from(fileInput.files) : [];
+    if (!texto && arquivos.length === 0) return;
 
-    if (arquivo) {
+    if (arquivos.length > 0) {
         const formData = new FormData();
         formData.append('conversa_id', String(conversaAtualId));
         formData.append('conteudo', texto);
-        formData.append('arquivo', arquivo);
+        arquivos.forEach(function(arquivo) {
+            formData.append('arquivos[]', arquivo);
+        });
 
         fetch('/api/mensagens', {
             method: 'POST',
             body: formData,
         }).then(function(r) { return r.json(); }).then(function(m) {
-            if (m && m.id) {
-                renderizarMensagem(m);
+            const mensagens = (m && Array.isArray(m.mensagens))
+                ? m.mensagens
+                : (m && m.id ? [m] : []);
+
+            if (mensagens.length > 0) {
+                mensagens.forEach(function(msg) { renderizarMensagem(msg); });
                 document.getElementById('messages').scrollTop = 99999;
                 input.value = '';
                 input.style.height = 'auto';
@@ -890,14 +901,20 @@ function atualizarPreviewAnexoMensagem() {
     const preview = document.getElementById('msg-file-preview');
     if (!fileInput || !preview) return;
 
-    const arquivo = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-    if (!arquivo) {
+    const arquivos = fileInput.files ? Array.from(fileInput.files) : [];
+    if (arquivos.length === 0) {
         preview.textContent = '';
         preview.classList.add('hidden');
         return;
     }
 
-    preview.textContent = 'Anexo selecionado: ' + arquivo.name;
+    if (arquivos.length === 1) {
+        preview.textContent = 'Anexo selecionado: ' + arquivos[0].name;
+    } else {
+        const nomes = arquivos.slice(0, 3).map(function(arquivo) { return arquivo.name; }).join(', ');
+        const restante = arquivos.length > 3 ? ' e mais ' + (arquivos.length - 3) : '';
+        preview.textContent = arquivos.length + ' anexos: ' + nomes + restante;
+    }
     preview.classList.remove('hidden');
 }
 
@@ -976,13 +993,13 @@ function inserirEmoji(emoji) {
     autoResize(input);
 }
 
-function popularEmojiPicker() {
-    const grid = document.getElementById('emoji-picker-grid');
-    if (!grid) return;
-
-    grid.innerHTML = EMOJIS_POPULARES.map(function(emoji) {
-        return '<button type="button" onclick="inserirEmoji(\'' + emoji + '\')" class="hover:scale-110 transition text-base leading-none p-1 rounded hover:bg-gray-700">' + emoji + '</button>';
-    }).join('');
+function configurarEmojiPicker() {
+    const picker = document.getElementById('emoji-picker-element');
+    if (!picker) return;
+    picker.addEventListener('emoji-click', function(event) {
+        const emoji = event && event.detail ? event.detail.unicode : '';
+        if (emoji) inserirEmoji(emoji);
+    });
 }
 
 // ── Emergência ────────────────────────────────

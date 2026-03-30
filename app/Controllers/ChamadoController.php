@@ -109,6 +109,7 @@ class ChamadoController
         $status = $params['status'] ?? null;
 
         $pdo = getDbConnection();
+    $this->garantirColunaResolvidoPor($pdo);
 
         $joinAnexo = "
             LEFT JOIN (
@@ -124,7 +125,9 @@ class ChamadoController
 
         $temResolvidoPor = $this->columnExists($pdo, 'chamados', 'resolvido_por');
         $joinResolvido = $temResolvidoPor ? 'LEFT JOIN usuarios r ON r.id = c.resolvido_por' : '';
-        $selectResolvido = $temResolvidoPor ? 'r.nome AS resolvido_por_nome,' : 'NULL AS resolvido_por_nome,';
+        $selectResolvido = $temResolvidoPor
+            ? 'COALESCE(r.nome, a.nome) AS resolvido_por_nome,'
+            : 'a.nome AS resolvido_por_nome,';
 
         if (in_array($papel, ['admin', 'ti'], true)) {
             $sql    = "SELECT c.*, u.nome AS usuario_nome,
@@ -174,13 +177,17 @@ class ChamadoController
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
 
-        return Json::json($response, $stmt->fetchAll());
+        $linhas = $stmt->fetchAll();
+        $linhas = $this->preencherResolvidoPorFallback($pdo, $linhas);
+
+        return Json::json($response, $linhas);
     }
 
     // PATCH /api/chamados/{id}/status
     public function atualizarStatus(Request $request, Response $response, array $args): Response
     {
         $papel = $request->getAttribute('user_papel');
+        $userId = (int) $request->getAttribute('user_id');
 
         if (!in_array($papel, ['admin', 'ti'], true)) {
             return Json::erro($response, 'Apenas TI pode atualizar chamados', 403);
@@ -196,8 +203,19 @@ class ChamadoController
         }
 
         $pdo  = getDbConnection();
-        $stmt = $pdo->prepare("UPDATE chamados SET status = ? WHERE id = ?");
-        $stmt->execute([$novoStatus, $chamadoId]);
+        $this->garantirColunaResolvidoPor($pdo);
+        if ($novoStatus === 'resolvido' && $this->columnExists($pdo, 'chamados', 'resolvido_por')) {
+            $stmt = $pdo->prepare("UPDATE chamados SET status = ?, resolvido_por = ?, atribuido_a = ? WHERE id = ?");
+            $stmt->execute([$novoStatus, $userId, $userId, $chamadoId]);
+        } else {
+            if ($novoStatus === 'resolvido') {
+                $stmt = $pdo->prepare("UPDATE chamados SET status = ?, atribuido_a = ? WHERE id = ?");
+                $stmt->execute([$novoStatus, $userId, $chamadoId]);
+            } else {
+                $stmt = $pdo->prepare("UPDATE chamados SET status = ? WHERE id = ?");
+                $stmt->execute([$novoStatus, $chamadoId]);
+            }
+        }
 
         return Json::json($response, ['ok' => true, 'status' => $novoStatus]);
     }
@@ -211,6 +229,17 @@ class ChamadoController
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'text/plain',
+            'application/octet-stream',
+            'application/x-msdownload',
+            'application/x-dosexec',
+            'model/step',
+            'application/step',
+        ];
+        $extensoesPermitidas = [
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif',
+            'pdf', 'doc', 'docx', 'txt',
+            'step', 'stp', 'exe',
         ];
 
         $tamanhoMax = (int) ($_ENV['UPLOAD_MAX_SIZE'] ?? 10485760);
@@ -227,11 +256,12 @@ class ChamadoController
         $finfo    = new \finfo(FILEINFO_MIME_TYPE);
         $mimeReal = $finfo->file($tmpPath);
 
-        if (!in_array($mimeReal, $mimesPermitidos, true)) {
+        $ext      = strtolower(pathinfo($arquivo->getClientFilename(), PATHINFO_EXTENSION));
+
+        if (!in_array($mimeReal, $mimesPermitidos, true) && !in_array($ext, $extensoesPermitidas, true)) {
             throw new \RuntimeException("Tipo não permitido: {$mimeReal}");
         }
 
-        $ext      = strtolower(pathinfo($arquivo->getClientFilename(), PATHINFO_EXTENSION));
         if ($ext === '') {
             $mapaExtensao = [
                 'image/jpeg' => 'jpg',
@@ -244,6 +274,10 @@ class ChamadoController
                 'application/pdf' => 'pdf',
                 'application/msword' => 'doc',
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                'text/plain' => 'txt',
+                'application/x-msdownload' => 'exe',
+                'application/x-dosexec' => 'exe',
+                'application/octet-stream' => 'bin',
             ];
             $ext = $mapaExtensao[$mimeReal] ?? 'bin';
         }
@@ -470,9 +504,10 @@ class ChamadoController
             }
 
             $pdo = getDbConnection();
+            $this->garantirColunaResolvidoPor($pdo);
 
-            // 1. Pega informações
-            $stmtBusca = $pdo->prepare("SELECT titulo, usuario_id FROM chamados WHERE id = ?");
+            // 1. Pega informações do chamado e do finalizador
+            $stmtBusca = $pdo->prepare("SELECT c.titulo, c.usuario_id FROM chamados c WHERE c.id = ?");
             $stmtBusca->execute([$id]);
             $chamado = $stmtBusca->fetch(\PDO::FETCH_ASSOC);
 
@@ -480,13 +515,18 @@ class ChamadoController
                 throw new \Exception("Chamado não encontrado.");
             }
 
+            $stmtFinalizador = $pdo->prepare("SELECT u.nome FROM usuarios u WHERE u.id = ?");
+            $stmtFinalizador->execute([$finalizadorId]);
+            $finalizadorRow = $stmtFinalizador->fetch(\PDO::FETCH_ASSOC);
+            $finalizadorNome = $finalizadorRow ? trim((string) $finalizadorRow['nome']) : 'Equipe de TI';
+
             // 2. Atualiza o status
             if ($this->columnExists($pdo, 'chamados', 'resolvido_por')) {
-                $stmtUp = $pdo->prepare("UPDATE chamados SET status = 'resolvido', resolvido_por = ? WHERE id = ?");
-                $stmtUp->execute([$finalizadorId, $id]);
+                $stmtUp = $pdo->prepare("UPDATE chamados SET status = 'resolvido', resolvido_por = ?, atribuido_a = ? WHERE id = ?");
+                $stmtUp->execute([$finalizadorId, $finalizadorId, $id]);
             } else {
-                $stmtUp = $pdo->prepare("UPDATE chamados SET status = 'resolvido' WHERE id = ?");
-                $stmtUp->execute([$id]);
+                $stmtUp = $pdo->prepare("UPDATE chamados SET status = 'resolvido', atribuido_a = ? WHERE id = ?");
+                $stmtUp->execute([$finalizadorId, $id]);
             }
 
             // 3. Bloco isolado para a mensagem (se falhar, o chamado fecha mesmo assim)
@@ -494,7 +534,7 @@ class ChamadoController
                 $solicitanteId = (int) $chamado['usuario_id'];
                 if ($solicitanteId !== $finalizadorId) {
                     $conversaId = $this->obterOuCriarConversaPrivada($pdo, $finalizadorId, $solicitanteId);
-                    $mensagemAutomatica = "Chamado #{$id} (\"{$chamado['titulo']}\") foi finalizado pela equipe de TI.";
+                    $mensagemAutomatica = "Chamado #{$id} (\"{$chamado['titulo']}\") foi finalizado por {$finalizadorNome}.";
                     $stmtMsg = $pdo->prepare("INSERT INTO mensagens (conversa_id, usuario_id, conteudo, criado_em) VALUES (?, ?, ?, NOW())");
                     $stmtMsg->execute([$conversaId, $finalizadorId, $mensagemAutomatica]);
                 }
@@ -502,7 +542,28 @@ class ChamadoController
                 error_log("Aviso: Falha ao enviar mensagem de chat, mas chamado foi fechado. Erro: " . $eMsg->getMessage());
             }
 
-            $payload = json_encode(['status' => 'success']);
+            $resolvidoPorNome = $finalizadorNome;
+            if ($this->columnExists($pdo, 'chamados', 'resolvido_por')) {
+                $stmtConfirma = $pdo->prepare(
+                    "SELECT c.resolvido_por, COALESCE(r.nome, a.nome) AS resolvido_por_nome
+                     FROM chamados c
+                     LEFT JOIN usuarios r ON r.id = c.resolvido_por
+                     LEFT JOIN usuarios a ON a.id = c.atribuido_a
+                     WHERE c.id = ?
+                     LIMIT 1"
+                );
+                $stmtConfirma->execute([$id]);
+                $confirmacao = $stmtConfirma->fetch(\PDO::FETCH_ASSOC);
+                if ($confirmacao && !empty($confirmacao['resolvido_por_nome'])) {
+                    $resolvidoPorNome = (string) $confirmacao['resolvido_por_nome'];
+                }
+            }
+
+            $payload = json_encode([
+                'status' => 'success',
+                'chamado_id' => $id,
+                'resolvido_por_nome' => $resolvidoPorNome,
+            ]);
             $response->getBody()->write($payload);
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
             
@@ -555,6 +616,79 @@ class ChamadoController
         $stmt = $pdo->prepare("\n            SELECT COUNT(*)\n            FROM information_schema.COLUMNS\n            WHERE TABLE_SCHEMA = DATABASE()\n              AND TABLE_NAME = ?\n              AND COLUMN_NAME = ?\n        ");
         $stmt->execute([$table, $column]);
         return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private function garantirColunaResolvidoPor(\PDO $pdo): void
+    {
+        try {
+            if (!$this->columnExists($pdo, 'chamados', 'resolvido_por')) {
+                $pdo->exec("ALTER TABLE chamados ADD COLUMN resolvido_por INT UNSIGNED NULL AFTER atribuido_a");
+            }
+
+            $stmt = $pdo->prepare("\n                SELECT COUNT(*)\n                FROM information_schema.TABLE_CONSTRAINTS\n                WHERE TABLE_SCHEMA = DATABASE()\n                  AND TABLE_NAME = 'chamados'\n                  AND CONSTRAINT_NAME = 'fk_chamados_resolvido_por'\n            ");
+            $stmt->execute();
+            $temFk = (int) $stmt->fetchColumn() > 0;
+
+            if (!$temFk) {
+                $pdo->exec("ALTER TABLE chamados ADD CONSTRAINT fk_chamados_resolvido_por FOREIGN KEY (resolvido_por) REFERENCES usuarios(id) ON DELETE SET NULL");
+            }
+        } catch (\Throwable $e) {
+            // Evita quebrar listagem/finalização caso usuário do banco não tenha permissão de ALTER.
+            error_log('Aviso: não foi possível garantir coluna resolvido_por: ' . $e->getMessage());
+        }
+    }
+
+    private function preencherResolvidoPorFallback(\PDO $pdo, array $linhas): array
+    {
+        if (empty($linhas)) {
+            return $linhas;
+        }
+
+        $temResolvidoPor = $this->columnExists($pdo, 'chamados', 'resolvido_por');
+        $stmtBusca = $pdo->prepare(
+            "SELECT m.usuario_id, u.nome AS usuario_nome
+             FROM mensagens m
+             INNER JOIN usuarios u ON u.id = m.usuario_id
+             WHERE m.conteudo LIKE ?
+             ORDER BY m.id DESC
+             LIMIT 1"
+        );
+        $stmtCorrige = $temResolvidoPor
+            ? $pdo->prepare('UPDATE chamados SET resolvido_por = ? WHERE id = ? AND (resolvido_por IS NULL OR resolvido_por = 0)')
+            : null;
+
+        foreach ($linhas as &$linha) {
+            $status = (string) ($linha['status'] ?? '');
+            $nomeAtual = trim((string) ($linha['resolvido_por_nome'] ?? ''));
+            if ($status !== 'resolvido' || $nomeAtual !== '') {
+                continue;
+            }
+
+            $chamadoId = (int) ($linha['id'] ?? 0);
+            if ($chamadoId <= 0) {
+                continue;
+            }
+
+            $padrao = 'Chamado #' . $chamadoId . ' ("%") foi finalizado por %';
+            $stmtBusca->execute([$padrao]);
+            $registro = $stmtBusca->fetch(\PDO::FETCH_ASSOC);
+            if (!$registro || empty($registro['usuario_nome'])) {
+                continue;
+            }
+
+            $linha['resolvido_por_nome'] = (string) $registro['usuario_nome'];
+
+            if ($stmtCorrige !== null) {
+                try {
+                    $stmtCorrige->execute([(int) $registro['usuario_id'], $chamadoId]);
+                } catch (\Throwable $e) {
+                    error_log('Aviso: nao foi possivel corrigir resolvido_por do chamado ' . $chamadoId . ': ' . $e->getMessage());
+                }
+            }
+        }
+        unset($linha);
+
+        return $linhas;
     }
 
     private function categoriasPadrao(): array

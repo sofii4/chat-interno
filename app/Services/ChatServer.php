@@ -17,7 +17,7 @@ class ChatServer implements MessageComponentInterface
         echo "Servidor de chat iniciado!\n";
 
         // Busca mudancas geradas fora do WS (ex.: mensagens automaticas de chamado)
-        Loop::addPeriodicTimer(1.5, function (): void {
+        Loop::addPeriodicTimer(0.8, function (): void {
             $this->sincronizarAtualizacoes();
         });
     }
@@ -29,6 +29,7 @@ class ChatServer implements MessageComponentInterface
         $conn->userName   = null;
         $conn->conversaId = null;
         $conn->lastSeenMessageId = 0;
+        $conn->lastSeenConversationId = 0;
         $conn->lastSeenDeletionAt = date('Y-m-d H:i:s');
         echo "Nova conexão: #{$conn->resourceId} | Total: {$this->clients->count()}\n";
     }
@@ -44,10 +45,13 @@ class ChatServer implements MessageComponentInterface
                 $from->userId     = (int) ($data['user_id']    ?? 0);
                 $from->userName   = $data['user_nome']          ?? 'Anônimo';
                 $from->conversaId = (int) ($data['conversa_id'] ?? 0);
-                $from->lastSeenMessageId = $this->obterUltimaMensagemVisivelId($from->userId);
+                $from->lastSeenMessageId = 0;
+                $from->lastSeenConversationId = 0;
                 $from->lastSeenDeletionAt = date('Y-m-d H:i:s');
                 $this->atualizarPresenca($from->userId, true);
                 echo "Autenticado: {$from->userName} (#{$from->userId})\n";
+                // Sincronização inicial para pegar mensagens recentes
+                $this->sincronizacaoInicial($from);
                 $from->send(json_encode(['type' => 'auth_ok', 'userId' => $from->userId]));
                 break;
 
@@ -251,10 +255,142 @@ class ChatServer implements MessageComponentInterface
             }
 
             try {
+                $this->sincronizarNovasConversas($client);
                 $this->sincronizarNovasMensagens($client);
                 $this->sincronizarApagamentos($client);
             } catch (\Throwable $e) {
                 error_log('Falha na sincronizacao WS: ' . $e->getMessage());
+            }
+        }
+    }
+
+    private function sincronizacaoInicial(ConnectionInterface $client): void
+    {
+        $pdo = getDbConnection();
+        $userId = (int) $client->userId;
+
+        if ($userId <= 0) {
+            return;
+        }
+
+        try {
+            // Sincroniza conversas novas (todas as que participa)
+            $stmtConv = $pdo->prepare(
+                "SELECT c.id, c.tipo, c.nome, c.criado_em,
+                        criador.nome AS criado_por_nome,
+                        CASE
+                            WHEN c.tipo = 'privada' THEN (
+                                SELECT u.nome FROM usuarios u
+                                INNER JOIN participantes p2 ON p2.usuario_id = u.id
+                                WHERE p2.conversa_id = c.id AND u.id != ?
+                                LIMIT 1
+                            )
+                            ELSE c.nome
+                        END AS display_nome
+                 FROM conversas c
+                 INNER JOIN participantes p ON p.conversa_id = c.id AND p.usuario_id = ?
+                 LEFT JOIN usuarios criador ON criador.id = c.criado_por
+                 ORDER BY c.id DESC
+                 LIMIT 50"
+            );
+            $stmtConv->execute([$userId, $userId]);
+            $conversas = $stmtConv->fetchAll(\PDO::FETCH_ASSOC);
+
+            foreach ($conversas as $conv) {
+                $convId = (int) ($conv['id'] ?? 0);
+                $client->send(json_encode([
+                    'type' => 'new_conversation',
+                    'conversa' => [
+                        'id' => $convId,
+                        'tipo' => (string) ($conv['tipo'] ?? ''),
+                        'nome' => (string) ($conv['display_nome'] ?? $conv['nome'] ?? 'Conversa'),
+                        'criado_em' => (string) ($conv['criado_em'] ?? ''),
+                        'criado_por_nome' => (string) ($conv['criado_por_nome'] ?? ''),
+                    ],
+                ], JSON_UNESCAPED_UNICODE));
+
+                if ($convId > 0) {
+                    $client->lastSeenConversationId = max((int) $client->lastSeenConversationId, $convId);
+                }
+            }
+
+            // Sincroniza mensagens recentes (últimas 100 de todas as conversas)
+            $stmtMsg = $pdo->prepare(
+                'SELECT m.id, m.conteudo, m.arquivo_path, m.arquivo_nome, m.criado_em,
+                        u.id AS usuario_id, u.nome AS usuario_nome,
+                        m.conversa_id
+                 FROM mensagens m
+                 INNER JOIN usuarios u ON u.id = m.usuario_id
+                 INNER JOIN participantes p ON p.conversa_id = m.conversa_id AND p.usuario_id = ?
+                 WHERE (p.entrou_em IS NULL OR m.criado_em >= p.entrou_em)
+                 ORDER BY m.id DESC
+                 LIMIT 100'
+            );
+            $stmtMsg->execute([$userId]);
+            $mensagens = array_reverse($stmtMsg->fetchAll(\PDO::FETCH_ASSOC));
+
+            foreach ($mensagens as $msg) {
+                $client->send(json_encode([
+                    'type' => 'new_message',
+                    'message' => $msg,
+                ], JSON_UNESCAPED_UNICODE));
+
+                $msgId = (int) ($msg['id'] ?? 0);
+                if ($msgId > 0) {
+                    $client->lastSeenMessageId = max((int) $client->lastSeenMessageId, $msgId);
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('Falha na sincronizacao inicial: ' . $e->getMessage());
+        }
+    }
+
+    private function sincronizarNovasConversas(ConnectionInterface $client): void
+    {
+        $pdo = getDbConnection();
+        $ultimoId = (int) ($client->lastSeenConversationId ?? 0);
+
+        $stmt = $pdo->prepare(
+            "SELECT c.id, c.tipo, c.nome, c.criado_em,
+                    criador.nome AS criado_por_nome,
+                    CASE
+                        WHEN c.tipo = 'privada' THEN (
+                            SELECT u.nome FROM usuarios u
+                            INNER JOIN participantes p2 ON p2.usuario_id = u.id
+                            WHERE p2.conversa_id = c.id AND u.id != ?
+                            LIMIT 1
+                        )
+                        ELSE c.nome
+                    END AS display_nome
+             FROM conversas c
+             INNER JOIN participantes p ON p.conversa_id = c.id AND p.usuario_id = ?
+             LEFT JOIN usuarios criador ON criador.id = c.criado_por
+             WHERE c.id > ?
+             ORDER BY c.id ASC
+             LIMIT 100"
+        );
+        $stmt->execute([(int) $client->userId, (int) $client->userId, $ultimoId]);
+        $novas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        if (!$novas) {
+            return;
+        }
+
+        foreach ($novas as $conv) {
+            $client->send(json_encode([
+                'type' => 'new_conversation',
+                'conversa' => [
+                    'id' => (int) ($conv['id'] ?? 0),
+                    'tipo' => (string) ($conv['tipo'] ?? ''),
+                    'nome' => (string) ($conv['display_nome'] ?? $conv['nome'] ?? 'Conversa'),
+                    'criado_em' => (string) ($conv['criado_em'] ?? ''),
+                    'criado_por_nome' => (string) ($conv['criado_por_nome'] ?? ''),
+                ],
+            ], JSON_UNESCAPED_UNICODE));
+
+            $convId = (int) ($conv['id'] ?? 0);
+            if ($convId > 0) {
+                $client->lastSeenConversationId = max((int) $client->lastSeenConversationId, $convId);
             }
         }
     }
@@ -272,7 +408,7 @@ class ChatServer implements MessageComponentInterface
              INNER JOIN usuarios u ON u.id = m.usuario_id
              INNER JOIN participantes p ON p.conversa_id = m.conversa_id AND p.usuario_id = ?
              WHERE m.id > ?
-               AND m.criado_em >= p.entrou_em
+               AND (p.entrou_em IS NULL OR m.criado_em >= p.entrou_em)
              ORDER BY m.id ASC
              LIMIT 200'
         );
@@ -357,6 +493,28 @@ class ChatServer implements MessageComponentInterface
             return (int) $stmt->fetchColumn();
         } catch (\Throwable $e) {
             error_log('Falha ao obter ultima mensagem visivel: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    private function obterUltimaConversaVisivelId(int $userId): int
+    {
+        if ($userId <= 0) {
+            return 0;
+        }
+
+        try {
+            $pdo = getDbConnection();
+            $stmt = $pdo->prepare(
+                'SELECT COALESCE(MAX(c.id), 0)
+                 FROM conversas c
+                 INNER JOIN participantes p ON p.conversa_id = c.id
+                 WHERE p.usuario_id = ?'
+            );
+            $stmt->execute([$userId]);
+            return (int) $stmt->fetchColumn();
+        } catch (\Throwable $e) {
+            error_log('Falha ao obter ultima conversa visivel: ' . $e->getMessage());
             return 0;
         }
     }

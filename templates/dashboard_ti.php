@@ -96,6 +96,16 @@
                 </button>
             </div>
 
+            <div id="filtros-historico" class="px-4 pt-3 pb-2 border-b border-gray-800/70 space-y-2">
+                <select id="filtro-historico-categoria" onchange="popularFiltroHistoricoSubcategorias()" class="w-full bg-gray-800 border border-gray-700 text-[11px] font-bold text-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">CATEGORIA (TODAS)</option>
+                </select>
+                <select id="filtro-historico-subcategoria" onchange="renderizarTudo()" class="w-full bg-gray-800 border border-gray-700 text-[11px] font-bold text-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">SUBCATEGORIA (TODAS)</option>
+                </select>
+                <input id="filtro-historico-data" type="date" onchange="renderizarTudo()" class="w-full bg-gray-800 border border-gray-700 text-[11px] font-bold text-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+
             <div id="conteudo-historico" class="flex-1 overflow-y-auto p-4 space-y-3">
             </div>
         </aside>
@@ -186,6 +196,14 @@
                     <label class="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Descrição</label>
                     <div id="detalhes-descricao" class="text-sm text-gray-300 bg-black/30 p-4 rounded-xl border border-gray-800/50 mb-4"></div>
 
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                        <p id="detalhes-meta-categoria" class="text-xs text-gray-400"></p>
+                        <p id="detalhes-meta-subcategoria" class="text-xs text-gray-400"></p>
+                        <p id="detalhes-meta-data-abertura" class="text-xs text-gray-400"></p>
+                        <p id="detalhes-meta-data-fechamento" class="text-xs text-gray-400"></p>
+                        <p id="detalhes-meta-solicitante" class="text-xs text-gray-400 sm:col-span-2"></p>
+                    </div>
+
                     <p id="detalhes-resolvido-por" class="text-xs text-gray-500"></p>
                 </div>
 
@@ -247,6 +265,8 @@
                 popularCategorias();
                 popularFiltroCategorias();
                 popularFiltroSubcategorias();
+                popularFiltroHistoricoCategorias();
+                popularFiltroHistoricoSubcategorias();
             });
             carregarDados();
         });
@@ -311,6 +331,49 @@
             renderizarTudo();
         }
 
+        function popularFiltroHistoricoCategorias() {
+            const filtro = document.getElementById('filtro-historico-categoria');
+            if (!filtro) return;
+
+            const atual = filtro.value;
+            filtro.innerHTML = '<option value="">CATEGORIA (TODAS)</option>';
+            Object.keys(CONFIG.categorias).forEach(cat => {
+                filtro.innerHTML += `<option value="${cat}">${cat.toUpperCase()}</option>`;
+            });
+
+            if (atual && CONFIG.categorias[atual]) {
+                filtro.value = atual;
+            }
+        }
+
+        function popularFiltroHistoricoSubcategorias() {
+            const filtroCat = document.getElementById('filtro-historico-categoria');
+            const filtroSub = document.getElementById('filtro-historico-subcategoria');
+            if (!filtroSub) return;
+
+            const categoriaSelecionada = filtroCat ? filtroCat.value : '';
+            const atual = filtroSub.value;
+
+            filtroSub.innerHTML = '<option value="">SUBCATEGORIA (TODAS)</option>';
+
+            if (categoriaSelecionada && CONFIG.categorias[categoriaSelecionada]) {
+                CONFIG.categorias[categoriaSelecionada].forEach(sub => {
+                    filtroSub.innerHTML += `<option value="${sub}">${sub.toUpperCase()}</option>`;
+                });
+                filtroSub.disabled = false;
+            } else {
+                filtroSub.disabled = true;
+            }
+
+            if (!filtroSub.disabled && atual) {
+                filtroSub.value = atual;
+            } else {
+                filtroSub.value = '';
+            }
+
+            renderizarTudo();
+        }
+
         async function carregarDados() {
             try {
                 const res = await fetch('/api/chamados');
@@ -336,6 +399,12 @@
             const filtroSub = filtroSubEl ? filtroSubEl.value : '';
             const filtroOrdenacaoEl = document.getElementById('filtro-ordenacao');
             const filtroOrdenacao = filtroOrdenacaoEl ? filtroOrdenacaoEl.value : '';
+            const filtroHistCatEl = document.getElementById('filtro-historico-categoria');
+            const filtroHistCat = filtroHistCatEl ? filtroHistCatEl.value : '';
+            const filtroHistSubEl = document.getElementById('filtro-historico-subcategoria');
+            const filtroHistSub = filtroHistSubEl ? filtroHistSubEl.value : '';
+            const filtroHistDataEl = document.getElementById('filtro-historico-data');
+            const filtroHistData = filtroHistDataEl ? filtroHistDataEl.value : '';
             const triagem = document.getElementById('container-triagem');
             const doc = document.getElementById('container-documentados');
             const historico = document.getElementById('conteudo-historico');
@@ -379,6 +448,13 @@
 
             const finalizados = chamadosCache
                 .filter(c => c.status === 'resolvido')
+                .filter(c => {
+                    const matchCat = !filtroHistCat || c.categoria === filtroHistCat;
+                    const matchSub = !filtroHistSub || c.subcategoria === filtroHistSub;
+                    const dataRef = c.atualizado_em || c.criado_em;
+                    const matchData = !filtroHistData || formatarDataISO(dataRef) === filtroHistData;
+                    return matchCat && matchSub && matchData;
+                })
                 .sort((a, b) => new Date(b.atualizado_em || b.criado_em) - new Date(a.atualizado_em || a.criado_em));
             const countFinalizados = document.getElementById('count-finalizados');
             if (countFinalizados) countFinalizados.innerText = finalizados.length;
@@ -451,8 +527,22 @@
                 </div>
                 <p class="text-xs font-bold text-white truncate">#${c.id} - ${c.titulo}</p>
                 <p class="text-[10px] text-gray-500 mt-1 truncate">Solicitante: ${nome}</p>
-                <p class="text-[10px] text-gray-600 mt-1 truncate">Resolvido por: ${c.resolvido_por_nome || 'TI'}</p>
+                <p class="text-[10px] text-gray-600 mt-1 truncate">Resolvido por: ${c.resolvido_por_nome || 'Nao informado'}</p>
             </button>`;
+        }
+
+        function formatarDataISO(valorData) {
+            if (!valorData) return '';
+            const data = new Date(valorData);
+            if (isNaN(data.getTime())) return '';
+            return data.toISOString().slice(0, 10);
+        }
+
+        function formatarDataHora(valorData) {
+            if (!valorData) return 'Nao informado';
+            const data = new Date(valorData);
+            if (isNaN(data.getTime())) return 'Nao informado';
+            return data.toLocaleString('pt-BR');
         }
 
         function togglePainelHistorico() {
@@ -560,9 +650,20 @@
             document.getElementById('detalhes-id-badge').innerText = "#" + c.id;
             document.getElementById('detalhes-titulo').innerText = c.titulo;
             document.getElementById('detalhes-descricao').innerHTML = c.descricao_rich;
+            const metaCategoria = document.getElementById('detalhes-meta-categoria');
+            const metaSubcategoria = document.getElementById('detalhes-meta-subcategoria');
+            const metaDataAbertura = document.getElementById('detalhes-meta-data-abertura');
+            const metaDataFechamento = document.getElementById('detalhes-meta-data-fechamento');
+            const metaSolicitante = document.getElementById('detalhes-meta-solicitante');
+
+            if (metaCategoria) metaCategoria.innerText = `Categoria: ${c.categoria || 'Nao informada'}`;
+            if (metaSubcategoria) metaSubcategoria.innerText = `Subcategoria: ${c.subcategoria || 'Nao informada'}`;
+            if (metaDataAbertura) metaDataAbertura.innerText = `Abertura: ${formatarDataHora(c.criado_em)}`;
+            if (metaDataFechamento) metaDataFechamento.innerText = `Fechamento: ${c.status === 'resolvido' ? formatarDataHora(c.atualizado_em || c.criado_em) : 'Em andamento'}`;
+            if (metaSolicitante) metaSolicitante.innerText = `Solicitante: ${c.usuario_nome || 'Nao informado'}`;
             const resolvedByEl = document.getElementById('detalhes-resolvido-por');
             if (resolvedByEl) {
-                resolvedByEl.innerText = c.resolvido_por_nome ? `Resolvido por: ${c.resolvido_por_nome}` : '';
+                resolvedByEl.innerText = c.resolvido_por_nome ? `Resolvido por: ${c.resolvido_por_nome}` : 'Resolvido por: Nao informado';
             }
             
             const badgePrioridade = document.getElementById('detalhes-prioridade');
@@ -647,16 +748,24 @@
             try {
                 // 2. Envia a ordem para o servidor (PHP) via API
                 const res = await fetch(`/api/chamados/${id}/finalizar`, { method: 'PATCH' });
-                
-                if(res.ok) {
-                    // 3. Deu tudo certo! O PHP finalizou e guardou a mensagem no banco.
-                    alert(`Chamado finalizado com sucesso! A mensagem automática foi enviada no chat do usuário.`);
-                    
-                    // 4. Recarrega a tela para o card sumir (ou ir para resolvidos)
-                    await carregarDados();
-                } else {
-                    alert("Erro ao finalizar chamado no servidor. Verifique os logs do PHP.");
+
+                let data = null;
+                try {
+                    data = await res.json();
+                } catch (_) {
+                    data = null;
                 }
+
+                if (!res.ok || !data || data.status !== 'success') {
+                    alert("Erro ao finalizar chamado no servidor. Verifique os logs do PHP.");
+                    return;
+                }
+
+                const nomeFinalizador = data.resolvido_por_nome || 'TI';
+                alert(`Chamado finalizado com sucesso por ${nomeFinalizador}! A mensagem automática foi enviada no chat do usuário.`);
+                
+                // 4. Recarrega a tela para o card sumir (ou ir para resolvidos)
+                await carregarDados();
             } catch(e) {
                 console.error("Erro de comunicação do JS com a API:", e);
                 alert("Erro de conexão ao tentar finalizar o chamado.");
@@ -726,6 +835,8 @@
             popularCategorias();
             popularFiltroCategorias();
             popularFiltroSubcategorias();
+            popularFiltroHistoricoCategorias();
+            popularFiltroHistoricoSubcategorias();
             await carregarListaTaxonomias();
         }
 
@@ -750,6 +861,8 @@
                 popularCategorias();
                 popularFiltroCategorias();
                 popularFiltroSubcategorias();
+                popularFiltroHistoricoCategorias();
+                popularFiltroHistoricoSubcategorias();
                 await carregarListaTaxonomias();
             };
         }
