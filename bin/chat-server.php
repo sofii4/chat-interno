@@ -4,6 +4,8 @@ declare(strict_types=1);
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../config/database.php';
 
+date_default_timezone_set('America/Sao_Paulo');
+
 // Carrega o .env
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();

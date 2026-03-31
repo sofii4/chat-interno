@@ -5,9 +5,12 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Helpers\Response as Json;
+use App\Support\SchemaInspector;
 
 class ChamadoController
 {
+    use SchemaInspector;
+
     private const PRIORIDADES_VALIDAS = ['baixa', 'media', 'alta', 'critica'];
 
     // POST /api/chamados
@@ -44,10 +47,8 @@ class ChamadoController
         $anexosSalvos = [];
         $anexosErros = [];
 
-        $anexos = $files['anexos'] ?? $files['anexos[]'] ?? null;
+        $anexos = $this->normalizarArquivosAnexos($files);
         if (!empty($anexos)) {
-            if (!is_array($anexos)) $anexos = [$anexos];
-
             foreach ($anexos as $arquivo) {
                 $nomeArquivo = method_exists($arquivo, 'getClientFilename') ? (string) $arquivo->getClientFilename() : 'arquivo';
 
@@ -100,6 +101,39 @@ class ChamadoController
         ], 201);
     }
 
+    private function normalizarArquivosAnexos(array $files): array
+    {
+        $candidatos = [];
+
+        if (array_key_exists('anexos', $files)) {
+            $candidatos[] = $files['anexos'];
+        }
+
+        if (array_key_exists('anexos[]', $files)) {
+            $candidatos[] = $files['anexos[]'];
+        }
+
+        $saida = [];
+        $pilha = $candidatos;
+
+        while (!empty($pilha)) {
+            $item = array_pop($pilha);
+
+            if (is_array($item)) {
+                foreach ($item as $subItem) {
+                    $pilha[] = $subItem;
+                }
+                continue;
+            }
+
+            if (is_object($item) && method_exists($item, 'getClientFilename') && method_exists($item, 'getError')) {
+                $saida[] = $item;
+            }
+        }
+
+        return $saida;
+    }
+
     // GET /api/chamados
     public function listar(Request $request, Response $response): Response
     {
@@ -109,7 +143,7 @@ class ChamadoController
         $status = $params['status'] ?? null;
 
         $pdo = getDbConnection();
-    $this->garantirColunaResolvidoPor($pdo);
+        $this->garantirColunaResolvidoPor($pdo);
 
         $joinAnexo = "
             LEFT JOIN (
@@ -218,6 +252,38 @@ class ChamadoController
         }
 
         return Json::json($response, ['ok' => true, 'status' => $novoStatus]);
+    }
+
+    // GET /api/chamados/{id}/anexos
+    public function listarAnexos(Request $request, Response $response, array $args): Response
+    {
+        $chamadoId = (int) ($args['id'] ?? 0);
+        if ($chamadoId <= 0) {
+            return Json::erro($response, 'ID de chamado invalido');
+        }
+
+        $userId = (int) $request->getAttribute('user_id');
+        $papel = (string) $request->getAttribute('user_papel');
+        $pdo = getDbConnection();
+
+        if (!in_array($papel, ['admin', 'ti'], true)) {
+            $stmtOwner = $pdo->prepare('SELECT usuario_id FROM chamados WHERE id = ? LIMIT 1');
+            $stmtOwner->execute([$chamadoId]);
+            $ownerId = (int) ($stmtOwner->fetchColumn() ?: 0);
+            if ($ownerId !== $userId) {
+                return Json::erro($response, 'Acesso negado', 403);
+            }
+        }
+
+        $stmt = $pdo->prepare(
+            'SELECT id, arquivo_path, arquivo_nome, mime_type, tamanho_bytes, criado_em
+             FROM chamado_anexos
+             WHERE chamado_id = ?
+             ORDER BY id ASC'
+        );
+        $stmt->execute([$chamadoId]);
+
+        return Json::json($response, $stmt->fetchAll(\PDO::FETCH_ASSOC));
     }
 
     // Salva arquivo de forma segura
@@ -335,16 +401,11 @@ class ChamadoController
 
             $this->upsertTaxonomia($pdo, $categoria, $subcategoria);
 
-            // Usando retorno nativo blindado
-            $payload = json_encode(['status' => 'success', 'message' => 'Classificado com sucesso']);
-            $response->getBody()->write($payload);
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            return Json::json($response, ['status' => 'success', 'message' => 'Classificado com sucesso']);
             
         } catch (\Exception $e) {
             error_log("Erro na classificação: " . $e->getMessage());
-            $payload = json_encode(['status' => 'error', 'message' => $e->getMessage()]);
-            $response->getBody()->write($payload);
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            return Json::json($response, ['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -559,18 +620,15 @@ class ChamadoController
                 }
             }
 
-            $payload = json_encode([
+            return Json::json($response, [
                 'status' => 'success',
                 'chamado_id' => $id,
                 'resolvido_por_nome' => $resolvidoPorNome,
             ]);
-            $response->getBody()->write($payload);
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
             
         } catch (\Exception $e) {
             error_log("Erro ao finalizar: " . $e->getMessage());
-            $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            return Json::json($response, ['error' => $e->getMessage()], 500);
         }
     }
 
@@ -602,20 +660,6 @@ class ChamadoController
 
         $stmt = $pdo->prepare("\n            INSERT INTO chamado_taxonomias (categoria, subcategoria, ativo)\n            VALUES (?, ?, 1)\n            ON DUPLICATE KEY UPDATE ativo = 1\n        ");
         $stmt->execute([$categoria, $subcategoria]);
-    }
-
-    private function tableExists(\PDO $pdo, string $table): bool
-    {
-        $stmt = $pdo->prepare("\n            SELECT COUNT(*)\n            FROM information_schema.TABLES\n            WHERE TABLE_SCHEMA = DATABASE()\n              AND TABLE_NAME = ?\n        ");
-        $stmt->execute([$table]);
-        return (int) $stmt->fetchColumn() > 0;
-    }
-
-    private function columnExists(\PDO $pdo, string $table, string $column): bool
-    {
-        $stmt = $pdo->prepare("\n            SELECT COUNT(*)\n            FROM information_schema.COLUMNS\n            WHERE TABLE_SCHEMA = DATABASE()\n              AND TABLE_NAME = ?\n              AND COLUMN_NAME = ?\n        ");
-        $stmt->execute([$table, $column]);
-        return (int) $stmt->fetchColumn() > 0;
     }
 
     private function garantirColunaResolvidoPor(\PDO $pdo): void

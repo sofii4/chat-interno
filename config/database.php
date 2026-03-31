@@ -20,6 +20,7 @@ function getDbConnection(): PDO
         ];
 
         $pdo = new PDO($dsn, $_ENV['DB_USER'], $_ENV['DB_PASS'], $options);
+        $pdo->exec("SET time_zone = '-03:00'");
     }
 
     return $pdo;

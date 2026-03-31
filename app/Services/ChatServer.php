@@ -6,9 +6,12 @@ use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 use SplObjectStorage;
 use React\EventLoop\Loop;
+use App\Support\SchemaInspector;
 
 class ChatServer implements MessageComponentInterface
 {
+    use SchemaInspector;
+
     private SplObjectStorage $clients;
 
     public function __construct()
@@ -519,16 +522,4 @@ class ChatServer implements MessageComponentInterface
         }
     }
 
-    private function columnExists(\PDO $pdo, string $table, string $column): bool
-    {
-        $stmt = $pdo->prepare(
-            'SELECT COUNT(*)
-             FROM information_schema.COLUMNS
-             WHERE TABLE_SCHEMA = DATABASE()
-               AND TABLE_NAME = ?
-               AND COLUMN_NAME = ?'
-        );
-        $stmt->execute([$table, $column]);
-        return ((int) $stmt->fetchColumn()) > 0;
-    }
 }

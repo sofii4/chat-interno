@@ -4,16 +4,13 @@ namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use App\Support\TemplateRenderer;
 
 class AuthController
 {
     public function exibirLogin(Request $request, Response $response): Response
     {
-        ob_start();
-        include __DIR__ . '/../../templates/login.php';
-        $html = ob_get_clean();
-        $response->getBody()->write($html);
-        return $response;
+        return TemplateRenderer::render($response, __DIR__ . '/../../templates/login.php');
     }
 
     public function processarLogin(Request $request, Response $response): Response

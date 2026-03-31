@@ -4,6 +4,8 @@ declare(strict_types=1);
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../config/database.php';
 
+date_default_timezone_set('America/Sao_Paulo');
+
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 
@@ -17,6 +19,7 @@ use App\Controllers\ChamadoController;
 use App\Controllers\AdminController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\AdminMiddleware;
+use App\Support\TemplateRenderer;
 
 $app = AppFactory::create();
 $app->addBodyParsingMiddleware();
@@ -31,22 +34,20 @@ $app->get('/logout', [AuthController::class, 'logout']);
 // ── Rotas protegidas — Frontend ───────────────
 $app->get('/admin', function ($request, $response) {
     $userName = $request->getAttribute('user_nome');
-    ob_start();
-    include __DIR__ . '/../templates/admin.php';
-    $html = ob_get_clean();
-    $response->getBody()->write($html);
-    return $response;
+    return TemplateRenderer::render($response, __DIR__ . '/../templates/admin.php', [
+        'userName' => $userName,
+    ]);
 })->add(new AdminMiddleware())->add(new AuthMiddleware());
 
 $app->get('/chat', function ($request, $response) {
     $userName  = $request->getAttribute('user_nome');
     $userId    = $request->getAttribute('user_id');
     $userPapel = $request->getAttribute('user_papel');
-    ob_start();
-    include __DIR__ . '/../templates/chat.php';
-    $html = ob_get_clean();
-    $response->getBody()->write($html);
-    return $response;
+    return TemplateRenderer::render($response, __DIR__ . '/../templates/chat.php', [
+        'userName' => $userName,
+        'userId' => $userId,
+        'userPapel' => $userPapel,
+    ]);
 })->add(new AuthMiddleware());
 
 $app->get('/dashboard-ti', function ($request, $response) {
@@ -54,15 +55,14 @@ $app->get('/dashboard-ti', function ($request, $response) {
     $userPapel = $request->getAttribute('user_papel');
     
     // Se não for TI ou Admin, redireciona pro chat
-    if (!in_array($userPapel, ['ti', 'admin'])) {
+    if (!in_array($userPapel, ['ti', 'admin'], true)) {
         return $response->withHeader('Location', '/chat')->withStatus(302);
     }
 
-    ob_start();
-    include __DIR__ . '/../templates/dashboard_ti.php';
-    $html = ob_get_clean();
-    $response->getBody()->write($html);
-    return $response;
+    return TemplateRenderer::render($response, __DIR__ . '/../templates/dashboard_ti.php', [
+        'userName' => $userName,
+        'userPapel' => $userPapel,
+    ]);
 })->add(new AuthMiddleware());
 
 // ── Rotas protegidas — API JSON ───────────────
@@ -87,6 +87,7 @@ $app->group('/api', function ($group) {
     // Chamados
     $group->post('/chamados',              [ChamadoController::class, 'criar']);
     $group->get('/chamados',               [ChamadoController::class, 'listar']);
+    $group->get('/chamados/{id}/anexos',   [ChamadoController::class, 'listarAnexos']);
     $group->patch('/chamados/{id}/status', [ChamadoController::class, 'atualizarStatus']);
     $group->patch('/chamados/{id}/classificar', [ChamadoController::class, 'classificar']);
     $group->patch('/chamados/{id}/classificacao', [ChamadoController::class, 'atualizarClassificacao']);

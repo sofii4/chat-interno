@@ -5,9 +5,12 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Helpers\Response as Json;
+use App\Support\SchemaInspector;
 
 class ChatController
 {
+    use SchemaInspector;
+
     // GET /api/conversas
     public function listarConversas(Request $request, Response $response): Response
     {
@@ -79,21 +82,21 @@ class ChatController
 
         $entrouEm = $participacao['entrou_em'] ?? null;
 
-            $temExclusao = $this->columnExists($pdo, 'mensagens', 'excluida_em') && $this->columnExists($pdo, 'mensagens', 'excluida_por');
-            $selectExclusao = $temExclusao
-                ? 'm.excluida_em, m.excluida_por,'
-                : 'NULL AS excluida_em, NULL AS excluida_por,';
+        $temExclusao = $this->columnExists($pdo, 'mensagens', 'excluida_em') && $this->columnExists($pdo, 'mensagens', 'excluida_por');
+        $selectExclusao = $temExclusao
+            ? 'm.excluida_em, m.excluida_por,'
+            : 'NULL AS excluida_em, NULL AS excluida_por,';
 
-            $stmt = $pdo->prepare("
-                SELECT m.id, m.conteudo, m.arquivo_path, m.arquivo_nome, {$selectExclusao} m.criado_em,
-                       u.id AS usuario_id, u.nome AS usuario_nome
-                FROM mensagens m
-                INNER JOIN usuarios u ON u.id = m.usuario_id
-                WHERE m.conversa_id = ?
-                  AND m.criado_em >= ?
-                ORDER BY m.criado_em DESC
-                LIMIT ? OFFSET ?
-            ");
+        $stmt = $pdo->prepare("
+            SELECT m.id, m.conteudo, m.arquivo_path, m.arquivo_nome, {$selectExclusao} m.criado_em,
+                   u.id AS usuario_id, u.nome AS usuario_nome
+            FROM mensagens m
+            INNER JOIN usuarios u ON u.id = m.usuario_id
+            WHERE m.conversa_id = ?
+              AND m.criado_em >= ?
+            ORDER BY m.criado_em DESC
+            LIMIT ? OFFSET ?
+        ");
         $stmt->execute([$conversaId, $entrouEm, $porPagina, $offset]);
 
         return Json::json($response, array_reverse($stmt->fetchAll()));
@@ -489,20 +492,6 @@ class ChatController
         $stmt->execute([$conversaId, $usuarioId]);
 
         return Json::json($response, ['ok' => true]);
-    }
-
-    private function columnExists(\PDO $pdo, string $table, string $column): bool
-    {
-        $stmt = $pdo->prepare("\n            SELECT COUNT(*)\n            FROM information_schema.COLUMNS\n            WHERE TABLE_SCHEMA = DATABASE()\n              AND TABLE_NAME = ?\n              AND COLUMN_NAME = ?\n        ");
-        $stmt->execute([$table, $column]);
-        return (int) $stmt->fetchColumn() > 0;
-    }
-
-    private function tableExists(\PDO $pdo, string $table): bool
-    {
-        $stmt = $pdo->prepare("\n            SELECT COUNT(*)\n            FROM information_schema.TABLES\n            WHERE TABLE_SCHEMA = DATABASE()\n              AND TABLE_NAME = ?\n        ");
-        $stmt->execute([$table]);
-        return (int) $stmt->fetchColumn() > 0;
     }
 
     private function salvarArquivoMensagem($arquivo, int $conversaId): array
