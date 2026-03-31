@@ -5,8 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login — Chat Interno</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body.theme-light {
+            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+            color: #0f172a;
+        }
+        body.theme-light .bg-gray-950 { background-color: #eef2ff !important; }
+        body.theme-light .bg-gray-900,
+        body.theme-light .bg-gray-800 { background-color: #ffffff !important; }
+        body.theme-light .border-gray-800,
+        body.theme-light .border-gray-700 { border-color: #cbd5e1 !important; }
+        body.theme-light .text-white { color: #0f172a !important; }
+        body.theme-light .text-gray-600,
+        body.theme-light .text-gray-500,
+        body.theme-light .text-gray-400 { color: #334155 !important; }
+        body.theme-light .text-gray-300 { color: #111827 !important; }
+        body.theme-light .placeholder-gray-500::placeholder { color: #64748b !important; opacity: 1; }
+        body.theme-light .bg-indigo-600,
+        body.theme-light .bg-indigo-600 .text-white,
+        body.theme-light .bg-indigo-600.text-white { background-color: #6d28d9 !important; color: #ffffff !important; }
+        body.theme-light .hover\:bg-indigo-500:hover { background-color: #7c3aed !important; }
+        body.theme-light .focus\:ring-indigo-500:focus { --tw-ring-color: rgba(109, 40, 217, 0.4) !important; }
+    </style>
 </head>
 <body class="bg-gray-950 min-h-screen flex items-center justify-center p-4">
+
+<button data-theme-toggle class="fixed top-6 right-6 z-20 w-9 h-9 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center transition" title="Alternar tema">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-10h-1M4.34 12h-1m15.02 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+    </svg>
+</button>
 
 <div class="w-full max-w-sm">
 
@@ -62,5 +90,6 @@
     <p class="text-center text-gray-600 text-xs mt-6">Chat Interno &copy; <?= date('Y') ?></p>
 </div>
 
+<script src="/assets/js/theme.js"></script>
 </body>
 </html>

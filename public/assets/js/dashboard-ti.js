@@ -322,23 +322,26 @@ function togglePainelHistorico() {
 
     const painel = document.getElementById('painel-historico');
     const headerInfo = document.getElementById('historico-header-info');
+    const filtros = document.getElementById('filtros-historico');
     const conteudo = document.getElementById('conteudo-historico');
     const icone = document.getElementById('icone-historico');
     const botao = document.getElementById('btn-toggle-historico');
 
-    if (!painel || !headerInfo || !conteudo || !icone || !botao) return;
+    if (!painel || !headerInfo || !conteudo || !icone || !botao || !filtros) return;
 
     if (historicoMinimizado) {
-        painel.classList.remove('w-80');
-        painel.classList.add('w-16');
+        painel.classList.remove('lg:w-80');
+        painel.classList.add('lg:w-16');
         headerInfo.classList.add('hidden');
+        filtros.classList.add('hidden');
         conteudo.classList.add('hidden');
         icone.classList.add('rotate-180');
         botao.title = 'Expandir histórico';
     } else {
-        painel.classList.remove('w-16');
-        painel.classList.add('w-80');
+        painel.classList.remove('lg:w-16');
+        painel.classList.add('lg:w-80');
         headerInfo.classList.remove('hidden');
+        filtros.classList.remove('hidden');
         conteudo.classList.remove('hidden');
         icone.classList.remove('rotate-180');
         botao.title = 'Minimizar histórico';

@@ -34,6 +34,9 @@ let sincronizacaoIntervalId = null;
 let conversasConhecidas = new Set();
 let sincronizacaoInicialConversasFeita = false;
 let wsSincronizacaoInicialConcluida = false;
+let emojiPicker = null;
+let emojiPickerVisivel = false;
+let emojiFallbackVisivel = false;
 // ── WebSocket ─────────────────────────────────
 function conectarWS() {
     const host = window.location.hostname;
@@ -140,13 +143,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     document.getElementById('modal-editar-grupo').addEventListener('click', function (e) {
         if (e.target === this) fecharModalEditarGrupo();
     });
-    document.addEventListener('click', function (e) {
-        const picker = document.getElementById('emoji-picker');
-        if (!picker || picker.classList.contains('hidden')) return;
-        if (e.target.closest('#emoji-picker') || e.target.closest('[title="Emojis"]')) return;
-        picker.classList.add('hidden');
-    });
-
     const inputWrapper = document.getElementById('msg-input-wrapper');
     if (inputWrapper) {
         inputWrapper.addEventListener('click', function (e) {
@@ -157,6 +153,15 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (input) input.focus();
         });
     }
+
+    configurarEmojiFallback();
+    document.addEventListener('click', function (e) {
+        const panel = document.getElementById('emoji-fallback-panel');
+        const btn = document.getElementById('btn-emoji');
+        if (!panel || !emojiFallbackVisivel) return;
+        if (panel.contains(e.target) || (btn && btn.contains(e.target))) return;
+        ocultarEmojiFallback();
+    });
 
     verificarNovasMensagensNotificacao();
     sincronizacaoIntervalId = window.setInterval(function () {
@@ -241,6 +246,17 @@ async function carregarConversas() {
     } else if (lista.length > 0) {
         const primeiro = nav.querySelector('.conversa-item');
         selecionarConversa(lista[0].id, lista[0].nome, primeiro);
+    }
+}
+
+function toggleSidebarMobile(forceOpen) {
+    const shouldOpen = typeof forceOpen === 'boolean'
+        ? forceOpen
+        : !document.body.classList.contains('sidebar-open');
+    document.body.classList.toggle('sidebar-open', shouldOpen);
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) {
+        overlay.classList.toggle('hidden', !shouldOpen);
     }
 }
 
@@ -337,6 +353,10 @@ function selecionarConversa(id, nome, el = null) {
     fetch('/api/conversas/' + id + '/lida', { method: 'POST' }).catch(e => console.log(e));
     carregarMensagens(id);
 
+    if (window.innerWidth < 768) {
+        toggleSidebarMobile(false);
+    }
+
     const btnInfo = document.getElementById('btn-info-grupo');
     if (btnInfo) {
         const mostrar = conversaAtualTipo === 'grupo' || conversaAtualTipo === 'setor';
@@ -413,8 +433,7 @@ function criarElementoMensagem(m) {
     const cor = proprio ? 'bg-indigo-600' : cores[m.usuario_id % cores.length];
     const hora = formatarHoraBrasilia(m.criado_em);
     const foiApagada = !!m.excluida_em || m.conteudo === '[mensagem apagada]';
-    const textoSeguro = (m.conteudo || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-    const conteudoHtml = foiApagada ? '<em class="text-gray-400">Mensagem apagada</em>' : textoSeguro;
+    const conteudoHtml = foiApagada ? '<em class="text-gray-400">Mensagem apagada</em>' : formatarConteudoMensagem(m.conteudo || '');
     const temArquivo = !!m.arquivo_path;
     const arquivoUrl = temArquivo ? ('/uploads/' + m.arquivo_path) : '';
     const isImagem = temArquivo && /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(m.arquivo_nome || m.arquivo_path || '');
@@ -444,6 +463,22 @@ function criarElementoMensagem(m) {
         + '</div>';
 
     return div;
+}
+
+function escaparHtml(valor) {
+    return String(valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function formatarConteudoMensagem(texto) {
+    const escapado = escaparHtml(texto || '');
+    return escapado
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-black/30 text-amber-300">$1</code>')
+        .replace(/\n/g, '<br>');
 }
 
 function formatarHoraBrasilia(valorData) {
@@ -608,9 +643,51 @@ function autoResize(el) {
 }
 
 function toggleEmojiPicker() {
-    const picker = document.getElementById('emoji-picker');
-    if (!picker) return;
-    picker.classList.toggle('hidden');
+    const trigger = document.getElementById('btn-emoji');
+    if (!trigger) return;
+
+    if (!emojiPicker) {
+        configurarEmojiPicker();
+        if (!emojiPicker) {
+            toggleEmojiFallback(trigger);
+            return;
+        }
+    }
+
+    try {
+        if (typeof emojiPicker.togglePicker === 'function') {
+            emojiPicker.togglePicker(trigger);
+            ocultarEmojiFallback();
+            window.setTimeout(function () {
+                const abriuPicker = Boolean(
+                    emojiPickerVisivel
+                    || (emojiPicker && (emojiPicker.pickerVisible || emojiPicker.isPickerVisible))
+                );
+                if (!abriuPicker) {
+                    toggleEmojiFallback(trigger);
+                }
+            }, 0);
+            return;
+        }
+
+        if (emojiPickerVisivel && typeof emojiPicker.hidePicker === 'function') {
+            emojiPicker.hidePicker();
+            emojiPickerVisivel = false;
+            return;
+        }
+
+        if (typeof emojiPicker.showPicker === 'function') {
+            emojiPicker.showPicker(trigger);
+            emojiPickerVisivel = true;
+            ocultarEmojiFallback();
+            return;
+        }
+
+        toggleEmojiFallback(trigger);
+    } catch (e) {
+        console.error('Falha ao abrir seletor de emoji:', e);
+        toggleEmojiFallback(trigger);
+    }
 }
 
 function inserirEmoji(emoji) {
@@ -631,12 +708,94 @@ function inserirEmoji(emoji) {
 }
 
 function configurarEmojiPicker() {
-    const picker = document.getElementById('emoji-picker-element');
-    if (!picker) return;
-    picker.addEventListener('emoji-click', function (event) {
-        const emoji = event && event.detail ? event.detail.unicode : '';
-        if (emoji) inserirEmoji(emoji);
+    const EmojiCtor = typeof window.EmojiButton === 'function'
+        ? window.EmojiButton
+        : (window.EmojiButton && typeof window.EmojiButton.EmojiButton === 'function'
+            ? window.EmojiButton.EmojiButton
+            : null);
+
+    if (!EmojiCtor) {
+        emojiPicker = null;
+        return;
+    }
+
+    const temaAtual = document.documentElement.getAttribute('data-theme') || 'dark';
+
+    emojiPicker = new EmojiCtor({
+        position: 'top-end',
+        theme: temaAtual === 'light' ? 'light' : 'dark',
+        autoHide: true,
+        rootElement: document.body,
+        zIndex: 99999,
+        showSearch: true,
+        showRecents: true
     });
+
+    emojiPicker.on('emoji', function (emoji) {
+        const unicode = emoji && (emoji.emoji || emoji.character || emoji.unicode || '');
+        if (unicode) inserirEmoji(unicode);
+    });
+
+    emojiPicker.on('hidden', function () {
+        emojiPickerVisivel = false;
+    });
+
+    emojiPicker.on('shown', function () {
+        emojiPickerVisivel = true;
+    });
+}
+
+function configurarEmojiFallback() {
+    const panel = document.getElementById('emoji-fallback-panel');
+    if (!panel) return;
+    panel.querySelectorAll('.emoji-fallback-item').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const emoji = btn.getAttribute('data-emoji') || '';
+            if (emoji) inserirEmoji(emoji);
+            ocultarEmojiFallback();
+        });
+    });
+}
+
+function toggleEmojiFallback(trigger) {
+    const panel = document.getElementById('emoji-fallback-panel');
+    if (!panel || !trigger) return;
+
+    if (emojiFallbackVisivel) {
+        ocultarEmojiFallback();
+        return;
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    panel.style.left = Math.max(8, rect.right - 256) + 'px';
+    panel.style.top = Math.max(8, rect.top - 172) + 'px';
+    panel.classList.remove('hidden');
+    emojiFallbackVisivel = true;
+}
+
+function ocultarEmojiFallback() {
+    const panel = document.getElementById('emoji-fallback-panel');
+    if (!panel) return;
+    panel.classList.add('hidden');
+    emojiFallbackVisivel = false;
+}
+
+function aplicarFormatacaoTexto(tipo) {
+    const input = document.getElementById('msg-input');
+    if (!input) return;
+
+    const inicio = input.selectionStart || 0;
+    const fim = input.selectionEnd || 0;
+    const selecionado = input.value.slice(inicio, fim);
+
+    if (tipo === 'bold') {
+        input.setRangeText('**' + selecionado + '**', inicio, fim, 'end');
+    } else if (tipo === 'italic') {
+        input.setRangeText('*' + selecionado + '*', inicio, fim, 'end');
+    }
+
+    input.focus();
+    autoResize(input);
 }
 
 // ── Emergência ────────────────────────────────

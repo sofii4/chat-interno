@@ -5,12 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin — Chat Interno</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body.theme-light {
+            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+            color: #0f172a;
+        }
+        body.theme-light .bg-gray-950 { background-color: #eef2ff !important; }
+        body.theme-light .bg-gray-900,
+        body.theme-light .bg-gray-800,
+        body.theme-light .bg-gray-800\/50 { background-color: #ffffff !important; }
+        body.theme-light .border-gray-800,
+        body.theme-light .border-gray-700 { border-color: #cbd5e1 !important; }
+        body.theme-light .text-white { color: #0f172a !important; }
+        body.theme-light .bg-indigo-600 .text-white,
+        body.theme-light .bg-indigo-700 .text-white,
+        body.theme-light .bg-indigo-600.text-white,
+        body.theme-light .bg-indigo-700.text-white,
+        body.theme-light .bg-indigo-600,
+        body.theme-light .bg-indigo-700 {
+            color: #ffffff !important;
+        }
+        body.theme-light .text-gray-600,
+        body.theme-light .text-gray-500,
+        body.theme-light .text-gray-400 { color: #334155 !important; }
+        body.theme-light .text-gray-300 { color: #111827 !important; }
+        body.theme-light #modal-usuario label,
+        body.theme-light #modal-setor label,
+        body.theme-light #modal-usuario-titulo,
+        body.theme-light #modal-setor h3 { color: #111827 !important; }
+        body.theme-light #senha-hint { color: #374151 !important; }
+        body.theme-light .btn-cancelar-modal {
+            color: #111827 !important;
+            border: 1px solid #94a3b8 !important;
+            background-color: #f8fafc !important;
+        }
+        body.theme-light .btn-cancelar-modal:hover {
+            background-color: #e2e8f0 !important;
+        }
+        body.theme-light .placeholder-gray-500::placeholder { color: #64748b !important; opacity: 1; }
+        body.theme-light .hover\:bg-gray-700:hover,
+        body.theme-light .hover\:bg-gray-800\/50:hover { background-color: #e2e8f0 !important; }
+        body.theme-light .bg-indigo-600 { background-color: #6d28d9 !important; }
+        body.theme-light .hover\:bg-indigo-500:hover { background-color: #7c3aed !important; }
+        body.theme-light .text-indigo-400 { color: #5b21b6 !important; }
+        body.theme-light .focus\:ring-indigo-500:focus { --tw-ring-color: rgba(109, 40, 217, 0.35) !important; }
+    </style>
 </head>
 <body class="bg-gray-950 text-white min-h-screen">
 
 <!-- Header -->
 <header class="bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-4">
+        <button data-theme-toggle class="w-9 h-9 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center transition" title="Alternar tema">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-10h-1M4.34 12h-1m15.02 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+            </svg>
+        </button>
         <a href="/chat" class="text-gray-400 hover:text-white transition">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
@@ -38,7 +88,7 @@
     </div>
 </div>
 
-<main class="max-w-6xl mx-auto px-6 py-8">
+<main class="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
 
     <!-- ABA USUÁRIOS -->
     <div id="aba-usuarios">
@@ -54,6 +104,7 @@
         </div>
 
         <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-gray-800 text-xs text-gray-400 uppercase tracking-wider">
@@ -69,6 +120,7 @@
                     <tr><td colspan="6" class="text-center py-8 text-gray-500 text-sm">Carregando...</td></tr>
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 
@@ -142,8 +194,8 @@
             </div>
         </div>
         <div class="flex gap-3 px-6 pb-6">
-            <button onclick="fecharModalUsuario()"
-                    class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl py-2.5 text-sm transition">
+                <button onclick="fecharModalUsuario()"
+                    class="btn-cancelar-modal flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl py-2.5 text-sm transition">
                 Cancelar
             </button>
             <button id="btn-salvar-usuario" onclick="salvarUsuario()"
@@ -178,8 +230,8 @@
             </div>
         </div>
         <div class="flex gap-3 px-6 pb-6">
-            <button onclick="fecharModalSetor()"
-                    class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl py-2.5 text-sm transition">
+                <button onclick="fecharModalSetor()"
+                    class="btn-cancelar-modal flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl py-2.5 text-sm transition">
                 Cancelar
             </button>
             <button onclick="salvarSetor()"
@@ -191,5 +243,6 @@
 </div>
 
 <script src="/assets/js/admin.js"></script>
+<script src="/assets/js/theme.js"></script>
 </body>
 </html>

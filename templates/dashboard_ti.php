@@ -11,11 +11,118 @@
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
         .card-anim { transition: all 0.2s ease; }
         .card-anim:hover { transform: translateY(-2px); }
+
+        body.theme-light {
+            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+            color: #0f172a;
+        }
+        body.theme-light .bg-gray-950 { background-color: #eef2ff !important; }
+        body.theme-light .bg-gray-900,
+        body.theme-light .bg-gray-900\/40,
+        body.theme-light .bg-gray-800,
+        body.theme-light .bg-gray-800\/50,
+        body.theme-light .bg-black\/30 { background-color: #ffffff !important; }
+        body.theme-light .border-gray-800,
+        body.theme-light .border-gray-700,
+        body.theme-light .border-gray-800\/50,
+        body.theme-light .border-gray-800\/70 { border-color: #cbd5e1 !important; }
+        body.theme-light .text-white { color: #0f172a !important; }
+        body.theme-light .bg-indigo-600 .text-white,
+        body.theme-light .bg-indigo-700 .text-white,
+        body.theme-light .bg-indigo-600.text-white,
+        body.theme-light .bg-indigo-700.text-white,
+        body.theme-light .bg-indigo-600,
+        body.theme-light .bg-indigo-700 {
+            color: #ffffff !important;
+        }
+        body.theme-light .text-gray-600,
+        body.theme-light .text-gray-500,
+        body.theme-light .text-gray-400 { color: #334155 !important; }
+        body.theme-light .text-gray-300,
+        body.theme-light .text-gray-200 { color: #1f2937 !important; }
+        body.theme-light .placeholder-gray-500::placeholder { color: #64748b !important; opacity: 1; }
+        body.theme-light .hover\:bg-gray-800:hover,
+        body.theme-light .hover\:bg-gray-700:hover,
+        body.theme-light .hover\:bg-gray-800\/80:hover { background-color: #e2e8f0 !important; }
+        body.theme-light .bg-indigo-600 { background-color: #6d28d9 !important; }
+        body.theme-light .hover\:bg-indigo-500:hover { background-color: #7c3aed !important; }
+        body.theme-light .text-indigo-400,
+        body.theme-light .text-indigo-300 { color: #5b21b6 !important; }
+        body.theme-light .focus\:ring-indigo-500:focus { --tw-ring-color: rgba(109, 40, 217, 0.35) !important; }
+        body.theme-light select {
+            color: #111827 !important;
+            background-color: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.theme-light select option {
+            color: #111827 !important;
+            background-color: #ffffff !important;
+        }
+        body.theme-light button.bg-gray-800,
+        body.theme-light a.bg-gray-800,
+        body.theme-light .bg-gray-800.border {
+            background-color: #e2e8f0 !important;
+            color: #1f2937 !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: 0 1px 1px rgba(15, 23, 42, 0.04);
+        }
+        body.theme-light button.bg-gray-800:hover,
+        body.theme-light a.bg-gray-800:hover,
+        body.theme-light .bg-gray-800.border:hover {
+            background-color: #cfd8e8 !important;
+            transform: translateY(-1px);
+        }
+        body.theme-light button.bg-indigo-600,
+        body.theme-light a.bg-indigo-600,
+        body.theme-light button.bg-indigo-700,
+        body.theme-light a.bg-indigo-700 {
+            background-image: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%) !important;
+            color: #ffffff !important;
+            border-color: transparent !important;
+            box-shadow: 0 10px 20px rgba(109, 40, 217, 0.18);
+        }
+        body.theme-light button.bg-indigo-600:hover,
+        body.theme-light a.bg-indigo-600:hover,
+        body.theme-light button.bg-indigo-700:hover,
+        body.theme-light a.bg-indigo-700:hover {
+            background-image: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%) !important;
+            transform: translateY(-1px);
+        }
+        body.theme-light #modal-classificar button.bg-gray-800,
+        body.theme-light #modal-detalhes button.bg-gray-800 {
+            color: #0f172a !important;
+            font-weight: 700;
+        }
+        body.theme-light #filtro-setor,
+        body.theme-light #filtro-subcategoria,
+        body.theme-light #filtro-ordenacao,
+        body.theme-light #filtro-historico-categoria,
+        body.theme-light #filtro-historico-subcategoria,
+        body.theme-light #filtro-historico-data,
+        body.theme-light #sel-prioridade,
+        body.theme-light #sel-categoria,
+        body.theme-light #sel-subcategoria,
+        body.theme-light #taxonomia-categoria,
+        body.theme-light #taxonomia-subcategoria {
+            color: #111827 !important;
+            background-color: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.theme-light #modal-classificar label,
+        body.theme-light #modal-detalhes label,
+        body.theme-light #modal-taxonomias h3 {
+            color: #111827 !important;
+        }
+        body.theme-light #modal-classificar .bg-gray-800,
+        body.theme-light #modal-detalhes .bg-gray-800,
+        body.theme-light #modal-taxonomias .bg-gray-800 {
+            color: #111827 !important;
+        }
     </style>
 </head>
 <body class="bg-gray-950 text-white h-screen flex flex-col overflow-hidden">
 
-    <header class="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-8 shrink-0">
+    <header class="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 md:px-8 shrink-0">
         <div class="flex items-center gap-4">
             <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" /></svg>
@@ -25,10 +132,15 @@
             </div>
         </div>
 
-        <div class="flex items-center gap-6">
+        <div class="flex items-center gap-3 md:gap-6">
             <div class="text-right hidden sm:block">
                 <p class="text-sm font-medium text-indigo-400"><?= htmlspecialchars($userName) ?></p>
             </div>
+            <button data-theme-toggle class="w-9 h-9 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center transition" title="Alternar tema">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-10h-1M4.34 12h-1m15.02 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+                </svg>
+            </button>
             <a href="/chat" class="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm font-medium transition border border-gray-700">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                 Voltar ao Chat
@@ -36,9 +148,9 @@
         </div>
     </header>
 
-    <main class="flex-1 flex overflow-hidden p-6 gap-6">
+    <main class="flex-1 flex flex-col lg:flex-row overflow-auto p-3 md:p-6 gap-4 md:gap-6">
         
-        <section class="w-96 flex flex-col shrink-0">
+        <section class="w-full lg:w-96 flex flex-col shrink-0 min-h-[260px] lg:min-h-0">
             <div class="flex items-center justify-between mb-4 px-2">
                 <h3 class="text-sm font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
                     <span class="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
@@ -51,13 +163,13 @@
                 </div>
         </section>
 
-        <section class="flex-1 flex flex-col bg-gray-900/40 rounded-3xl border border-gray-800/50 p-6">
+        <section class="flex-1 flex flex-col bg-gray-900/40 rounded-3xl border border-gray-800/50 p-4 md:p-6 min-h-[340px]">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
                     <h3 class="text-sm font-black text-gray-500 uppercase tracking-widest">Chamados Documentados</h3>
                 </div>
                 
-                <div class="flex gap-2">
+                <div class="flex flex-wrap gap-2">
                     <button onclick="abrirModalTaxonomias()" class="bg-gray-800 border border-gray-700 text-xs font-bold text-indigo-300 rounded-lg px-3 py-2 hover:bg-gray-700 transition">
                         GERENCIAR CATEGORIAS
                     </button>
@@ -85,7 +197,7 @@
                 </div>
         </section>
 
-        <aside id="painel-historico" class="w-80 flex flex-col shrink-0 bg-gray-900/40 rounded-3xl border border-gray-800/50 transition-all duration-300">
+        <aside id="painel-historico" class="w-full lg:w-80 flex flex-col shrink-0 bg-gray-900/40 rounded-3xl border border-gray-800/50 transition-all duration-300 min-h-[260px] lg:min-h-0">
             <div class="p-4 border-b border-gray-800/70 flex items-center gap-3">
                 <div id="historico-header-info" class="flex-1 min-w-0 flex items-center justify-between">
                     <h3 class="text-sm font-black text-gray-500 uppercase tracking-widest">Histórico</h3>
@@ -227,6 +339,7 @@
             <div id="lista-taxonomias" class="max-h-80 overflow-y-auto space-y-2"></div>
         </div>
     </div>
+    <script src="/assets/js/theme.js"></script>
     <script src="/assets/js/dashboard-ti.js"></script>
 </body>
 </html>

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Interno</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js"></script>
     <style>
         #messages { scroll-behavior: smooth; }
         .msg-enter { animation: fadeUp .2s ease; }
@@ -16,12 +16,74 @@
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 999px; }
+
+        body.theme-light {
+            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+            color: #0f172a;
+        }
+        body.theme-light .bg-gray-950 { background-color: #eef2ff !important; }
+        body.theme-light .bg-gray-900 { background-color: #ffffff !important; }
+        body.theme-light .bg-gray-800 { background-color: #e9eef7 !important; }
+        body.theme-light .border-gray-800,
+        body.theme-light .border-gray-700 { border-color: #cbd5e1 !important; }
+        body.theme-light .text-white { color: #0f172a !important; }
+        body.theme-light .bg-indigo-600 .text-white,
+        body.theme-light .bg-indigo-700 .text-white,
+        body.theme-light .bg-indigo-600.text-white,
+        body.theme-light .bg-indigo-700.text-white,
+        body.theme-light .bg-indigo-600,
+        body.theme-light .bg-indigo-700 {
+            color: #ffffff !important;
+        }
+        body.theme-light .text-gray-600,
+        body.theme-light .text-gray-500,
+        body.theme-light .text-gray-400 { color: #334155 !important; }
+        body.theme-light .text-gray-300,
+        body.theme-light .text-gray-200 { color: #1f2937 !important; }
+        body.theme-light .placeholder-gray-500::placeholder { color: #64748b !important; opacity: 1; }
+        body.theme-light .hover\:bg-gray-800:hover { background-color: #dfe7f5 !important; }
+        body.theme-light .hover\:bg-gray-700:hover { background-color: #dbe7ff !important; }
+        body.theme-light .bg-indigo-600 { background-color: #6d28d9 !important; }
+        body.theme-light .bg-indigo-700 { background-color: #5b21b6 !important; }
+        body.theme-light .hover\:bg-indigo-500:hover { background-color: #7c3aed !important; }
+        body.theme-light .text-indigo-400,
+        body.theme-light .text-indigo-300 { color: #5b21b6 !important; }
+        body.theme-light .border-indigo-500,
+        body.theme-light .hover\:border-indigo-500:hover { border-color: #7c3aed !important; }
+        body.theme-light .focus\:ring-indigo-500:focus { --tw-ring-color: rgba(109, 40, 217, 0.35) !important; }
+        body.theme-light .text-gray-300 { color: #1e293b !important; }
+        body.theme-light #btn-painel-chamados,
+        body.theme-light #btn-painel-chamados * { color: #ffffff !important; }
+
+        @media (max-width: 767px) {
+            #chat-sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                z-index: 50;
+                transform: translateX(-100%);
+                transition: transform .2s ease;
+            }
+
+            body.sidebar-open #chat-sidebar {
+                transform: translateX(0);
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-950 text-white h-screen flex overflow-hidden">
 
 <!-- ═══ SIDEBAR ═══ -->
-<aside class="w-72 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">
+<aside id="chat-sidebar" class="w-72 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">
+
+    <div class="md:hidden p-3 border-b border-gray-800 flex justify-end">
+        <button onclick="toggleSidebarMobile(false)" class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center" title="Fechar menu">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
 
     <div class="p-4 border-b border-gray-800 flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -57,7 +119,7 @@
         </div>
     </div>
 
-    <div class="p-3 border-b border-gray-800">
+    <div class="p-3">
         <button onclick="abrirEmergencia()"
                 class="w-full bg-red-600 hover:bg-red-500 text-white text-sm font-semibold rounded-xl py-2.5 px-4 flex items-center justify-center gap-2 transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,19 +168,31 @@
 </aside>
 
 <!-- ═══ ÁREA PRINCIPAL ═══ -->
-<main class="flex-1 flex flex-col min-w-0">
+<main class="flex-1 flex flex-col min-w-0 w-full">
 
-    <header class="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-6 shrink-0">
+    <header class="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 md:px-6 shrink-0">
         <div class="flex items-center gap-3">
+            <button class="md:hidden w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center" onclick="toggleSidebarMobile(true)" title="Abrir menu">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
             <div class="w-8 h-8 bg-indigo-700 rounded-lg flex items-center justify-center text-sm">#</div>
             <div>
                 <p id="chat-nome" class="font-semibold text-white text-sm">Selecione uma conversa</p>
                 <p class="text-xs text-gray-400">Chat Interno</p>
             </div>
         </div>
-        <button id="btn-info-grupo" onclick="abrirModalInfoGrupo()" class="hidden px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">
-            Informações do Grupo
-        </button>
+        <div class="flex items-center gap-2">
+            <button data-theme-toggle class="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center transition" title="Alternar tema">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-10h-1M4.34 12h-1m15.02 6.36l-.7-.7M6.34 6.34l-.7-.7m12.02 0l-.7.7M6.34 17.66l-.7.7M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+                </svg>
+            </button>
+            <button id="btn-info-grupo" onclick="abrirModalInfoGrupo()" class="hidden px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">
+                Informações do Grupo
+            </button>
+        </div>
     </header>
 
     <div class="px-6 pt-3">
@@ -133,40 +207,61 @@
 
     <div id="typing-indicator" class="hidden px-6 py-1 text-xs text-gray-500 italic"></div>
 
-    <div class="p-4 bg-gray-900 border-t border-gray-800 shrink-0">
-        <div id="msg-input-wrapper" class="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-indigo-500 transition cursor-text">
-            <button onclick="document.getElementById('msg-file-input').click()" class="text-gray-400 hover:text-indigo-400 transition shrink-0 mb-0.5">
+    <div class="p-3 md:p-4 bg-gray-900 border-t border-gray-800 shrink-0">
+        <div id="msg-input-wrapper" class="flex items-center gap-2 md:gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-3 md:px-4 py-2.5 focus-within:ring-2 focus-within:ring-indigo-500 transition cursor-text">
+            <button onclick="document.getElementById('msg-file-input').click()" class="text-gray-400 hover:text-indigo-400 transition shrink-0 p-1" title="Anexar arquivos">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                 </svg>
             </button>
             <input id="msg-file-input" type="file" multiple class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.mp3,.wav,.ogg,.m4a,.mp4,.mov,.webm" onchange="atualizarPreviewAnexoMensagem()">
+            <button onclick="aplicarFormatacaoTexto('bold')" class="text-gray-400 hover:text-indigo-400 transition shrink-0 p-1 text-xs font-bold" title="Negrito">B</button>
+            <button onclick="aplicarFormatacaoTexto('italic')" class="text-gray-400 hover:text-indigo-400 transition shrink-0 p-1 text-xs italic font-semibold" title="Itálico">I</button>
             <textarea id="msg-input" rows="1"
                       placeholder="Selecione uma conversa..."
-                      class="flex-1 bg-transparent text-sm text-white placeholder-gray-500 resize-none focus:outline-none max-h-32"
+                      class="flex-1 bg-transparent text-sm text-white placeholder-gray-500 resize-none focus:outline-none max-h-32 leading-6 py-1"
                       onkeydown="handleEnter(event)"
                       oninput="autoResize(this)"></textarea>
-            <button onclick="toggleEmojiPicker()" class="text-gray-400 hover:text-amber-300 transition shrink-0 mb-0.5" title="Emojis">
+            <button id="btn-emoji" type="button" onclick="toggleEmojiPicker()" class="text-gray-400 hover:text-amber-300 transition shrink-0 p-1" title="Emojis">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
             </button>
             <button onclick="enviarMensagem()"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl p-2 transition shrink-0 mb-0.5">
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl p-2 transition shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                 </svg>
             </button>
         </div>
-        <div id="emoji-picker" class="hidden mt-2 ml-1 px-2 py-2 bg-gray-800 border border-gray-700 rounded-xl text-sm">
-            <emoji-picker id="emoji-picker-element" class="w-full" style="--background: #111827; --border-color: #374151;"></emoji-picker>
+        <div id="emoji-fallback-panel" class="hidden fixed z-[100000] bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-2 w-64">
+            <div class="grid grid-cols-8 gap-1 text-lg">
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="😀">😀</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="😁">😁</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="😂">😂</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="😊">😊</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="😍">😍</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="😎">😎</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="🤔">🤔</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="😭">😭</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="😡">😡</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="👍">👍</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="👏">👏</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="🙏">🙏</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="🔥">🔥</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="✅">✅</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="🎉">🎉</button>
+                <button type="button" class="emoji-fallback-item hover:bg-gray-800 rounded p-1" data-emoji="❤️">❤️</button>
+            </div>
         </div>
         <div id="msg-file-preview" class="hidden mt-2 ml-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-xs text-gray-300"></div>
         <p class="text-xs text-gray-600 mt-2 ml-1">Enter para enviar · Shift+Enter para nova linha</p>
     </div>
 </main>
+
+<div id="sidebar-overlay" class="hidden md:hidden fixed inset-0 bg-black/50 z-40" onclick="toggleSidebarMobile(false)"></div>
 
 <!-- ═══ MODAL EMERGÊNCIA ═══ -->
 <div id="modal-emergencia" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -409,6 +504,7 @@ window.CHAT_BOOTSTRAP = <?= json_encode([
     'isAdmin' => $userPapel === 'admin',
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 </script>
+<script src="/assets/js/theme.js"></script>
 <script src="/assets/js/chat.js"></script>
 
 </body>
