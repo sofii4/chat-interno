@@ -1,175 +1,164 @@
 # Chat Interno + Sistema de Chamados
 
-Sistema interno de comunicação empresarial com chat em tempo real e fluxo completo de chamados para TI, com foco em triagem, classificação, histórico e gestão de taxonomias no dashboard.
+Sistema interno de comunicação empresarial com chat em tempo real e gestão completa de chamados de TI, incluindo triagem, classificação, anexos, histórico e notificações.
 
 ## Sumário
 
-- [Stack técnica](#stack-técnica)
-- [Funcionalidades principais](#funcionalidades-principais)
-- [Novidades do dashboard TI](#novidades-do-dashboard-ti)
-- [Banco de dados](#banco-de-dados)
+- [Visão Geral](#visão-geral)
+- [Stack Técnica](#stack-técnica)
+- [Funcionalidades](#funcionalidades)
+- [Modelo de Dados](#modelo-de-dados)
 - [APIs REST](#apis-rest)
-- [WebSocket](#websocket)
-- [Como rodar](#como-rodar)
-- [Observações de arquitetura](#observações-de-arquitetura)
+- [Tempo Real (WebSocket)](#tempo-real-websocket)
+- [Como Rodar](#como-rodar)
+- [Arquitetura e Operação](#arquitetura-e-operação)
+
+## Visão Geral
+
+O projeto reúne duas frentes principais:
+
+1. Chat corporativo com conversas privadas, grupos e canais por setor.
+2. Fluxo de chamados para TI com classificação por prioridade/categoria/subcategoria, anexos e finalização com notificação automática ao solicitante.
 
 ## Stack Técnica
 
 | Camada | Tecnologia | Função |
 |---|---|---|
-| Backend | PHP 8.1+ | Linguagem principal |
-| Framework | Slim 4 | Roteamento HTTP |
-| Tempo real | Ratchet | Servidor WebSocket (porta 8080) |
-| Banco | MySQL 8 | Persistência de dados |
-| Acesso a dados | PDO | Queries com prepared statements |
-| Dependências | Composer | Gerenciador de pacotes |
-| Variáveis | phpdotenv | Configurações via `.env` |
-| Frontend | Tailwind CSS (CDN) | UI responsiva |
-| Frontend | JavaScript Vanilla | Lógica de interface |
-| Servidor web | Apache 2.4 + mod_rewrite | Entrega da aplicação |
+| Backend | PHP 8.1+ | Aplicação principal |
+| Framework | Slim 4 | Rotas e middlewares |
+| Tempo real | Ratchet | WebSocket para mensagens/eventos |
+| Banco | MySQL 8 | Persistência |
+| Acesso a dados | PDO | Consultas com prepared statements |
+| Dependências | Composer | Gerenciamento de pacotes |
+| Configuração | phpdotenv | Variáveis de ambiente |
+| Frontend | HTML + Tailwind CSS + JS Vanilla | Interface e interação |
+| Web server | Apache 2.4 + mod_rewrite | Entrega HTTP |
 
-## Funcionalidades Principais
+## Funcionalidades
 
-- Chat em tempo real com fallback HTTP quando WebSocket estiver offline.
+### Chat
+
+- Mensagens em tempo real via WebSocket.
+- Fallback HTTP para envio quando o socket está indisponível.
 - Conversas privadas, em grupo e por setor.
-- Chamados com upload de anexos e classificação por prioridade/categoria/subcategoria.
-- Painel admin para gestão de usuários e setores.
-- Dashboard TI dedicado para triagem e resolução operacional dos chamados.
+- Indicadores de não lidas e presença online.
+- Anexos em mensagens.
 
-## Dashboard TI
+### Chamados
 
-### Organização em 3 áreas
+- Abertura de chamado com múltiplos anexos.
+- Validação de arquivo por tipo MIME e tamanho.
+- Classificação por prioridade, categoria e subcategoria.
+- Edição de classificação.
+- Finalização com registro de responsável e data de resolução.
+- Envio automático de mensagem no chat ao finalizar chamado.
 
-- Coluna de triagem para chamados abertos.
-- Grade de chamados documentados (classificados).
-- Painel lateral de histórico (resolvidos), com opção de minimizar/expandir.
+### Dashboard TI
 
-### Filtros e ordenação
+- Triagem de chamados abertos.
+- Coluna de chamados documentados/classificados.
+- Histórico de chamados resolvidos.
+- Filtros por categoria/subcategoria e data.
+- Ordenação por urgência e por data.
+- Modais de detalhes e classificação com suporte a descrições longas e rolagem.
 
-- Filtro por categoria (setor).
-- Filtro dependente por subcategoria (carrega conforme a categoria selecionada).
-- Ordenação dos chamados documentados por urgência quando nenhum filtro de data está selecionado (`critica` -> `alta` -> `media` -> `baixa`).
-- Ordenação por data quando selecionado no filtro (`Mais recentes` ou `Mais antigos`).
+### Admin
 
-### Fluxo de classificação e detalhamento
+- Gestão de usuários (criar, atualizar, desativar).
+- Gestão de setores.
 
-- Modal de classificação com descrição completa, prioridade, categoria e subcategoria.
-- Modal de detalhes com ações rápidas para editar classificação, chamar setor e finalizar chamado.
-- O botão chamar setor redireciona para chat privado com o solicitante.
-- Exibição de data no card e de "resolvido por" no histórico.
+## Modelo de Dados
 
-### Anexos (dashboard e chat)
+Tabelas principais:
 
-- Pré-visualização de imagem no modal (quando o anexo for imagem).
-- Botões de visualizar e baixar anexo nos modais.
-- Suporte a anexos no cadastro do chamado via chat.
-- Compatibilidade com campos de upload `anexos` e `anexos[]`.
-- Retorno de erros por arquivo em `anexo_erros` para diagnóstico no frontend.
+- setores
+- usuarios
+- conversas
+- participantes
+- mensagens
+- chamados
+- chamado_anexos
+- chamado_taxonomias
 
-### Finalização com notificação automática
+Pontos relevantes:
 
-- Ao finalizar um chamado, o sistema tenta obter/criar conversa privada com o solicitante.
-- Uma mensagem automática é enviada no chat do usuário avisando a conclusão do chamado.
-
-### Gestão de taxonomias (categorias/subcategorias)
-
-- Modal "Gerenciar categorias" no dashboard.
-- Cadastro e remoção de categoria/subcategoria via API.
-- Leitura dinâmica para preencher filtros e selects de classificação.
-
-## Banco de Dados
-
-### Tabelas
-
-```sql
-setores             -- Estrutura organizacional
-usuarios            -- Usuários e papéis (admin, ti, usuario)
-conversas           -- Conversas (privada, grupo, setor)
-participantes       -- Usuário x conversa
-mensagens           -- Mensagens e anexos
-chamados            -- Chamados de suporte
-chamado_anexos      -- Anexos dos chamados
-chamado_taxonomias  -- Categorias/subcategorias usadas no dashboard
-```
-
-### Detalhes importantes
-
-- `participantes.ultima_leitura` controla não lidas por conversa.
-- Em conversa privada, `conversas.nome` pode ser `NULL`.
-- Senhas são armazenadas com `password_hash`.
-- Na listagem de chamados, o backend retorna metadados do primeiro anexo para exibição rápida no dashboard.
+- participantes.ultima_leitura controla contagem de não lidas.
+- mensagens guarda metadados de arquivo (path/nome/tipo/tamanho), enquanto o binário fica em disco.
+- chamado_anexos armazena metadados dos anexos de chamados.
+- Senhas são persistidas com password_hash.
 
 ## APIs REST
 
-Todas as rotas abaixo exigem sessão autenticada (`AuthMiddleware`).
+Todas as rotas exigem sessão autenticada via middleware.
 
 ### Chat
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/api/conversas` | Lista conversas do usuário |
-| `POST` | `/api/conversas` | Cria conversa (grupo/privada) |
-| `GET` | `/api/conversas/{id}` | Detalhes de conversa |
-| `PATCH` | `/api/conversas/{id}` | Edita metadados da conversa |
-| `PATCH` | `/api/conversas/{id}/descricao` | Atualiza descrição |
-| `DELETE` | `/api/conversas/{id}` | Remove conversa |
-| `POST` | `/api/conversas/{id}/lida` | Marca como lida |
-| `GET` | `/api/conversas/{id}/participantes` | Lista participantes |
-| `POST` | `/api/conversas/{id}/participantes` | Adiciona participante |
-| `DELETE` | `/api/conversas/{id}/participantes/{uid}` | Remove participante |
-| `GET` | `/api/mensagens` | Lista mensagens por conversa |
-| `POST` | `/api/mensagens` | Envia mensagem (fallback HTTP) |
-| `DELETE` | `/api/mensagens/{id}` | Apaga mensagem |
-| `GET` | `/api/usuarios/online` | Lista usuários online |
+| GET | /api/conversas | Lista conversas do usuário |
+| POST | /api/conversas | Cria conversa (grupo/privada) |
+| GET | /api/conversas/{id} | Detalhes da conversa |
+| PATCH | /api/conversas/{id} | Edita metadados |
+| PATCH | /api/conversas/{id}/descricao | Atualiza descrição |
+| DELETE | /api/conversas/{id} | Remove conversa |
+| POST | /api/conversas/{id}/lida | Marca como lida |
+| GET | /api/conversas/{id}/participantes | Lista participantes |
+| POST | /api/conversas/{id}/participantes | Adiciona participante |
+| DELETE | /api/conversas/{id}/participantes/{uid} | Remove participante |
+| GET | /api/mensagens | Lista mensagens por conversa |
+| POST | /api/mensagens | Envia mensagem (fallback HTTP) |
+| DELETE | /api/mensagens/{id} | Remove mensagem |
+| GET | /api/usuarios/online | Lista usuários online |
 
 ### Chamados
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/api/chamados` | Abre chamado com anexos |
-| `GET` | `/api/chamados` | Lista chamados (escopo por papel) |
-| `PATCH` | `/api/chamados/{id}/status` | Atualiza status |
-| `PATCH` | `/api/chamados/{id}/classificar` | Classifica chamado aberto |
-| `PATCH` | `/api/chamados/{id}/classificacao` | Atualiza classificação existente |
-| `PATCH` | `/api/chamados/{id}/finalizar` | Finaliza e dispara mensagem automática |
-| `GET` | `/api/chamados-taxonomias` | Lista mapa de categorias/subcategorias |
-| `GET` | `/api/chamados-taxonomias/detalhe` | Lista taxonomias com ID |
-| `POST` | `/api/chamados-taxonomias` | Cria/reativa taxonomia |
-| `DELETE` | `/api/chamados-taxonomias/{id}` | Inativa taxonomia |
+| POST | /api/chamados | Abre chamado com anexos |
+| GET | /api/chamados | Lista chamados por escopo de perfil |
+| GET | /api/chamados/{id}/anexos | Lista todos os anexos do chamado |
+| PATCH | /api/chamados/{id}/status | Atualiza status |
+| PATCH | /api/chamados/{id}/classificar | Classifica chamado aberto |
+| PATCH | /api/chamados/{id}/classificacao | Atualiza classificação |
+| PATCH | /api/chamados/{id}/finalizar | Finaliza chamado e notifica no chat |
+| GET | /api/chamados-taxonomias | Lista mapa categoria/subcategoria |
+| GET | /api/chamados-taxonomias/detalhe | Lista taxonomias com ID |
+| POST | /api/chamados-taxonomias | Cria/reativa taxonomia |
+| DELETE | /api/chamados-taxonomias/{id} | Inativa taxonomia |
 
 ### Admin
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/api/admin/usuarios` | Lista usuários |
-| `POST` | `/api/admin/usuarios` | Cria usuário |
-| `PATCH` | `/api/admin/usuarios/{id}` | Atualiza usuário |
-| `DELETE` | `/api/admin/usuarios/{id}` | Desativa usuário |
-| `GET` | `/api/admin/setores` | Lista setores |
-| `POST` | `/api/admin/setores` | Cria setor |
-| `DELETE` | `/api/admin/setores/{id}` | Remove setor |
+| GET | /api/admin/usuarios | Lista usuários |
+| POST | /api/admin/usuarios | Cria usuário |
+| PATCH | /api/admin/usuarios/{id} | Atualiza usuário |
+| DELETE | /api/admin/usuarios/{id} | Desativa usuário |
+| GET | /api/admin/setores | Lista setores |
+| POST | /api/admin/setores | Cria setor |
+| DELETE | /api/admin/setores/{id} | Remove setor |
 
-## WebSocket
+## Tempo Real (WebSocket)
 
-Servidor de tempo real executado em processo separado (porta `8080`).
+Servidor em processo separado, padrão na porta 8080.
+
+Comando:
 
 ```bash
 php bin/chat-server.php
 ```
 
-### Eventos principais
+Eventos principais:
 
 | Direção | Evento | Descrição |
 |---|---|---|
-| cliente -> servidor | `auth` | Autentica conexão |
-| servidor -> cliente | `auth_ok` | Confirma autenticação |
-| cliente -> servidor | `join` | Entra na conversa |
-| cliente -> servidor | `send_message` | Envia mensagem |
-| servidor -> cliente | `new_message` | Entrega de nova mensagem |
-| cliente -> servidor | `typing` | Usuário digitando |
-| servidor -> cliente | `typing` | Broadcast de digitação |
-
-Reconexão automática no frontend e fallback para `POST /api/mensagens` quando necessário.
+| cliente -> servidor | auth | Autentica conexão |
+| servidor -> cliente | auth_ok | Confirma autenticação |
+| cliente -> servidor | join | Entra em conversa |
+| cliente -> servidor | send_message | Envia mensagem |
+| servidor -> cliente | new_message | Nova mensagem |
+| cliente -> servidor | typing | Usuário digitando |
+| servidor -> cliente | typing | Broadcast de digitação |
 
 ## Como Rodar
 
@@ -188,7 +177,7 @@ cd chat-interno
 composer install
 
 cp .env.example .env
-# editar .env
+# ajuste as variáveis no arquivo .env
 
 mysql -u root -p -e "CREATE DATABASE chat_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 mysql -u root -p chat_db < config/schema.sql
@@ -197,9 +186,7 @@ sudo a2enmod rewrite
 sudo systemctl restart apache2
 ```
 
-### Permissões para upload (importante)
-
-Se o Apache roda com usuário `www-data`, garanta permissão de escrita em `public/uploads`:
+### Permissões de upload
 
 ```bash
 sudo chown -R www-data:www-data public/uploads
@@ -212,18 +199,19 @@ sudo chmod -R 775 public/uploads
 php bin/chat-server.php
 ```
 
-### Acesso
+### Rotas de acesso
 
 | URL | Descrição |
 |---|---|
-| `http://localhost/login` | Login |
-| `http://localhost/chat` | Chat |
-| `http://localhost/dashboard-ti` | Dashboard TI |
-| `http://localhost/admin` | Painel admin |
+| http://localhost/login | Login |
+| http://localhost/chat | Chat |
+| http://localhost/dashboard-ti | Dashboard TI |
+| http://localhost/admin | Admin |
 
-## Observações de Arquitetura
+## Arquitetura e Operação
 
-- Apache (HTTP + APIs) e Ratchet (WebSocket) rodam em paralelo.
-- Histórico de mensagens via HTTP; novas mensagens via WebSocket.
-- Finalização de chamado mantém rastreabilidade: altera status, registra resolvedor e notifica o usuário no chat.
-- Upload valida MIME real e tamanho máximo, e retorna erros detalhados por arquivo.
+- HTTP e WebSocket rodam em processos separados.
+- Histórico e consultas via HTTP; eventos novos via WebSocket.
+- Notificações usam combinação de evento em tempo real + sincronização leve periódica no frontend para robustez.
+- Arquivos são salvos em disco e apenas metadados ficam no banco.
+- Projeto opera com timezone America/Sao_Paulo no app e no serviço de chat.
