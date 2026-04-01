@@ -1,6 +1,6 @@
 # Chat Interno + Sistema de Chamados
 
-Sistema interno de comunicação empresarial com chat em tempo real e gestão completa de chamados de TI, incluindo triagem, classificação, anexos, histórico e notificações.
+Sistema interno de comunicação empresarial com chat em tempo real e gestão completa de chamados de TI, incluindo triagem, classificação, comentários técnicos com anexos, histórico, relatórios e notificações.
 
 ## Sumário
 
@@ -18,7 +18,7 @@ Sistema interno de comunicação empresarial com chat em tempo real e gestão co
 O projeto reúne duas frentes principais:
 
 1. Chat corporativo com conversas privadas, grupos e canais por setor.
-2. Fluxo de chamados para TI com classificação por prioridade/categoria/subcategoria, anexos e finalização com notificação automática ao solicitante.
+2. Fluxo de chamados para TI com classificação por prioridade/categoria/subcategoria, anexos, comentários técnicos e finalização com notificação automática ao solicitante.
 
 ## Stack Técnica
 
@@ -51,6 +51,11 @@ O projeto reúne duas frentes principais:
 - Classificação por prioridade, categoria e subcategoria.
 - Edição de classificação.
 - Finalização com registro de responsável e data de resolução.
+- Comentários técnicos por TI/Admin com anexos em cada chamado.
+- Em chamados finalizados, comentários ficam somente leitura.
+- Em chamados documentados, exclusão de comentários é permitida para TI/Admin.
+- Dashboard do usuário final para acompanhar os próprios chamados.
+- Cancelamento de chamado pelo solicitante (somente chamados ativos).
 - Envio automático de mensagem no chat ao finalizar chamado.
 
 ### Dashboard TI
@@ -61,11 +66,29 @@ O projeto reúne duas frentes principais:
 - Filtros por categoria/subcategoria e data.
 - Ordenação por urgência e por data.
 - Modais de detalhes e classificação com suporte a descrições longas e rolagem.
+- Gestão de taxonomias (categorias/subcategorias) integrada ao topo do painel.
+- Relatório avançado acessível pelo botão de resultados no topo.
 
 ### Admin
 
 - Gestão de usuários (criar, atualizar, desativar).
 - Gestão de setores.
+- Tabela de usuários com paginação e filtros no servidor.
+- Busca de usuários por nome, e-mail, setor e papel.
+
+### Relatórios
+
+- Dashboard avançado de chamados (`/dashboard-ti/relatorio`) com KPIs (total, abertos, resolvidos, cancelados, tempo médio).
+- Série temporal de abertos vs resolvidos (30 dias).
+- Distribuição por categoria.
+- Tabelas analíticas por categoria, subcategoria, solicitante e finalizador.
+- Exportação de relatório em CSV (API).
+- Exportação de relatório em PDF (cliente).
+
+### UX/Tema
+
+- Light mode centralizado em arquivo único para manutenção simples: `public/assets/css/light-mode.css`.
+- Todas as telas principais reutilizam o mesmo arquivo, sem duplicação de regras por template.
 
 ## Modelo de Dados
 
@@ -78,6 +101,8 @@ Tabelas principais:
 - mensagens
 - chamados
 - chamado_anexos
+- chamado_comentarios
+- chamado_comentario_anexos
 - chamado_taxonomias
 
 Pontos relevantes:
@@ -85,6 +110,8 @@ Pontos relevantes:
 - participantes.ultima_leitura controla contagem de não lidas.
 - mensagens guarda metadados de arquivo (path/nome/tipo/tamanho), enquanto o binário fica em disco.
 - chamado_anexos armazena metadados dos anexos de chamados.
+- chamado_comentarios armazena comentários técnicos e de resolução por chamado.
+- chamado_comentario_anexos armazena anexos vinculados a comentários.
 - Senhas são persistidas com password_hash.
 
 ## APIs REST
@@ -117,10 +144,16 @@ Todas as rotas exigem sessão autenticada via middleware.
 | POST | /api/chamados | Abre chamado com anexos |
 | GET | /api/chamados | Lista chamados por escopo de perfil |
 | GET | /api/chamados/{id}/anexos | Lista todos os anexos do chamado |
+| GET | /api/chamados/{id}/comentarios | Lista comentários (TI/Admin e dono do chamado) |
+| POST | /api/chamados/{id}/comentarios | Adiciona comentário (TI/Admin) |
+| DELETE | /api/chamados/{id}/comentarios/{comentarioId} | Remove comentário (TI/Admin; bloqueado em resolvidos) |
+| PATCH | /api/chamados/{id}/cancelar | Cancela chamado do próprio usuário (se ativo) |
 | PATCH | /api/chamados/{id}/status | Atualiza status |
 | PATCH | /api/chamados/{id}/classificar | Classifica chamado aberto |
 | PATCH | /api/chamados/{id}/classificacao | Atualiza classificação |
 | PATCH | /api/chamados/{id}/finalizar | Finaliza chamado e notifica no chat |
+| GET | /api/chamados/relatorio | Retorna dados agregados do relatório avançado |
+| GET | /api/chamados/relatorio/csv | Exporta relatório em CSV |
 | GET | /api/chamados-taxonomias | Lista mapa categoria/subcategoria |
 | GET | /api/chamados-taxonomias/detalhe | Lista taxonomias com ID |
 | POST | /api/chamados-taxonomias | Cria/reativa taxonomia |
@@ -130,7 +163,7 @@ Todas as rotas exigem sessão autenticada via middleware.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | /api/admin/usuarios | Lista usuários |
+| GET | /api/admin/usuarios | Lista usuários (com paginação/filtros) |
 | POST | /api/admin/usuarios | Cria usuário |
 | PATCH | /api/admin/usuarios/{id} | Atualiza usuário |
 | DELETE | /api/admin/usuarios/{id} | Desativa usuário |
@@ -206,6 +239,8 @@ php bin/chat-server.php
 | http://localhost/login | Login |
 | http://localhost/chat | Chat |
 | http://localhost/dashboard-ti | Dashboard TI |
+| http://localhost/dashboard-ti/relatorio | Relatório de Chamados |
+| http://localhost/meus-chamados | Dashboard do Usuário |
 | http://localhost/admin | Admin |
 
 ## Arquitetura e Operação
