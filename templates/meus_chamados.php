@@ -5,32 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meus Chamados</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/assets/css/light-mode.css">
     <style>
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #111827; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 999px; }
         .card-anim { transition: transform .2s ease, border-color .2s ease, background-color .2s ease; }
         .card-anim:hover { transform: translateY(-2px); }
-        body.theme-light {
-            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
-            color: #0f172a;
-        }
-        body.theme-light .bg-gray-950 { background-color: #eef2ff !important; }
-        body.theme-light .bg-gray-900,
-        body.theme-light .bg-gray-900\/40,
-        body.theme-light .bg-gray-800 { background-color: #ffffff !important; }
-        body.theme-light .border-gray-800,
-        body.theme-light .border-gray-700 { border-color: #cbd5e1 !important; }
-        body.theme-light .text-white { color: #0f172a !important; }
-        body.theme-light .text-gray-500,
-        body.theme-light .text-gray-400 { color: #334155 !important; }
-        body.theme-light .text-gray-300 { color: #1e293b !important; }
-        body.theme-light .bg-indigo-600 { background-color: #6d28d9 !important; }
-        body.theme-light .hover\:bg-indigo-500:hover { background-color: #7c3aed !important; }
-        body.theme-light .focus\:ring-indigo-500:focus { --tw-ring-color: rgba(109, 40, 217, 0.35) !important; }
     </style>
 </head>
-<body class="bg-gray-950 text-white min-h-screen">
+<body class="page-meus-chamados bg-gray-950 text-white min-h-screen">
 <?php $chamadosUsuario = $chamadosUsuario ?? []; ?>
 <div class="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
     <div class="relative overflow-hidden rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-900 via-gray-900 to-indigo-950 shadow-2xl">

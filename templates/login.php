@@ -5,30 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login — Chat Interno</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/assets/css/light-mode.css">
     <style>
-        body.theme-light {
-            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
-            color: #0f172a;
-        }
-        body.theme-light .bg-gray-950 { background-color: #eef2ff !important; }
-        body.theme-light .bg-gray-900,
-        body.theme-light .bg-gray-800 { background-color: #ffffff !important; }
-        body.theme-light .border-gray-800,
-        body.theme-light .border-gray-700 { border-color: #cbd5e1 !important; }
-        body.theme-light .text-white { color: #0f172a !important; }
-        body.theme-light .text-gray-600,
-        body.theme-light .text-gray-500,
-        body.theme-light .text-gray-400 { color: #334155 !important; }
-        body.theme-light .text-gray-300 { color: #111827 !important; }
-        body.theme-light .placeholder-gray-500::placeholder { color: #64748b !important; opacity: 1; }
-        body.theme-light .bg-indigo-600,
-        body.theme-light .bg-indigo-600 .text-white,
-        body.theme-light .bg-indigo-600.text-white { background-color: #6d28d9 !important; color: #ffffff !important; }
-        body.theme-light .hover\:bg-indigo-500:hover { background-color: #7c3aed !important; }
-        body.theme-light .focus\:ring-indigo-500:focus { --tw-ring-color: rgba(109, 40, 217, 0.4) !important; }
     </style>
 </head>
-<body class="bg-gray-950 min-h-screen flex items-center justify-center p-4">
+<body class="page-login bg-gray-950 min-h-screen flex items-center justify-center p-4">
 
 <button data-theme-toggle class="fixed top-6 right-6 z-20 w-9 h-9 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center transition" title="Alternar tema">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

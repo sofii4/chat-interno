@@ -6,6 +6,7 @@
     <title>Chat Interno</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js"></script>
+    <link rel="stylesheet" href="/assets/css/light-mode.css">
     <style>
         #messages { scroll-behavior: smooth; }
         .msg-enter { animation: fadeUp .2s ease; }
@@ -16,44 +17,6 @@
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 999px; }
-
-        body.theme-light {
-            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
-            color: #0f172a;
-        }
-        body.theme-light .bg-gray-950 { background-color: #eef2ff !important; }
-        body.theme-light .bg-gray-900 { background-color: #ffffff !important; }
-        body.theme-light .bg-gray-800 { background-color: #e9eef7 !important; }
-        body.theme-light .border-gray-800,
-        body.theme-light .border-gray-700 { border-color: #cbd5e1 !important; }
-        body.theme-light .text-white { color: #0f172a !important; }
-        body.theme-light .bg-indigo-600 .text-white,
-        body.theme-light .bg-indigo-700 .text-white,
-        body.theme-light .bg-indigo-600.text-white,
-        body.theme-light .bg-indigo-700.text-white,
-        body.theme-light .bg-indigo-600,
-        body.theme-light .bg-indigo-700 {
-            color: #ffffff !important;
-        }
-        body.theme-light .text-gray-600,
-        body.theme-light .text-gray-500,
-        body.theme-light .text-gray-400 { color: #334155 !important; }
-        body.theme-light .text-gray-300,
-        body.theme-light .text-gray-200 { color: #1f2937 !important; }
-        body.theme-light .placeholder-gray-500::placeholder { color: #64748b !important; opacity: 1; }
-        body.theme-light .hover\:bg-gray-800:hover { background-color: #dfe7f5 !important; }
-        body.theme-light .hover\:bg-gray-700:hover { background-color: #dbe7ff !important; }
-        body.theme-light .bg-indigo-600 { background-color: #6d28d9 !important; }
-        body.theme-light .bg-indigo-700 { background-color: #5b21b6 !important; }
-        body.theme-light .hover\:bg-indigo-500:hover { background-color: #7c3aed !important; }
-        body.theme-light .text-indigo-400,
-        body.theme-light .text-indigo-300 { color: #5b21b6 !important; }
-        body.theme-light .border-indigo-500,
-        body.theme-light .hover\:border-indigo-500:hover { border-color: #7c3aed !important; }
-        body.theme-light .focus\:ring-indigo-500:focus { --tw-ring-color: rgba(109, 40, 217, 0.35) !important; }
-        body.theme-light .text-gray-300 { color: #1e293b !important; }
-        body.theme-light #btn-painel-chamados,
-        body.theme-light #btn-painel-chamados * { color: #ffffff !important; }
 
         @media (max-width: 767px) {
             #chat-sidebar {
@@ -72,7 +35,7 @@
         }
     </style>
 </head>
-<body class="bg-gray-950 text-white h-screen flex overflow-hidden">
+<body class="page-chat bg-gray-950 text-white h-screen flex overflow-hidden">
 
 <!-- ═══ SIDEBAR ═══ -->
 <aside id="chat-sidebar" class="w-72 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">

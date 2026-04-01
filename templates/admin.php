@@ -5,53 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin — Chat Interno</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/assets/css/light-mode.css">
     <style>
-        body.theme-light {
-            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
-            color: #0f172a;
-        }
-        body.theme-light .bg-gray-950 { background-color: #eef2ff !important; }
-        body.theme-light .bg-gray-900,
-        body.theme-light .bg-gray-800,
-        body.theme-light .bg-gray-800\/50 { background-color: #ffffff !important; }
-        body.theme-light .border-gray-800,
-        body.theme-light .border-gray-700 { border-color: #cbd5e1 !important; }
-        body.theme-light .text-white { color: #0f172a !important; }
-        body.theme-light .bg-indigo-600 .text-white,
-        body.theme-light .bg-indigo-700 .text-white,
-        body.theme-light .bg-indigo-600.text-white,
-        body.theme-light .bg-indigo-700.text-white,
-        body.theme-light .bg-indigo-600,
-        body.theme-light .bg-indigo-700 {
-            color: #ffffff !important;
-        }
-        body.theme-light .text-gray-600,
-        body.theme-light .text-gray-500,
-        body.theme-light .text-gray-400 { color: #334155 !important; }
-        body.theme-light .text-gray-300 { color: #111827 !important; }
-        body.theme-light #modal-usuario label,
-        body.theme-light #modal-setor label,
-        body.theme-light #modal-usuario-titulo,
-        body.theme-light #modal-setor h3 { color: #111827 !important; }
-        body.theme-light #senha-hint { color: #374151 !important; }
-        body.theme-light .btn-cancelar-modal {
-            color: #111827 !important;
-            border: 1px solid #94a3b8 !important;
-            background-color: #f8fafc !important;
-        }
-        body.theme-light .btn-cancelar-modal:hover {
-            background-color: #e2e8f0 !important;
-        }
-        body.theme-light .placeholder-gray-500::placeholder { color: #64748b !important; opacity: 1; }
-        body.theme-light .hover\:bg-gray-700:hover,
-        body.theme-light .hover\:bg-gray-800\/50:hover { background-color: #e2e8f0 !important; }
-        body.theme-light .bg-indigo-600 { background-color: #6d28d9 !important; }
-        body.theme-light .hover\:bg-indigo-500:hover { background-color: #7c3aed !important; }
-        body.theme-light .text-indigo-400 { color: #5b21b6 !important; }
-        body.theme-light .focus\:ring-indigo-500:focus { --tw-ring-color: rgba(109, 40, 217, 0.35) !important; }
     </style>
 </head>
-<body class="bg-gray-950 text-white min-h-screen">
+<body class="page-admin bg-gray-950 text-white min-h-screen">
 
 <!-- Header -->
 <header class="bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center justify-between">

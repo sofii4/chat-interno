@@ -6,32 +6,15 @@
     <title>Relatório de Chamados</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/assets/css/light-mode.css">
     <style>
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #111827; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 999px; }
         .card-glow { box-shadow: 0 18px 35px rgba(15, 23, 42, .35); }
-
-        body.theme-light {
-            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
-            color: #0f172a;
-        }
-        body.theme-light .bg-gray-950 { background-color: #eef2ff !important; }
-        body.theme-light .bg-gray-900,
-        body.theme-light .bg-gray-900\/70,
-        body.theme-light .bg-gray-800,
-        body.theme-light .bg-black\/30 { background-color: #ffffff !important; }
-        body.theme-light .border-gray-800,
-        body.theme-light .border-gray-700 { border-color: #cbd5e1 !important; }
-        body.theme-light .text-white { color: #0f172a !important; }
-        body.theme-light .text-gray-500,
-        body.theme-light .text-gray-400 { color: #334155 !important; }
-        body.theme-light .text-gray-300 { color: #1e293b !important; }
-        body.theme-light .bg-indigo-600 { background-color: #6d28d9 !important; }
-        body.theme-light .hover\:bg-indigo-500:hover { background-color: #7c3aed !important; }
     </style>
 </head>
-<body class="bg-gray-950 text-white min-h-screen">
+<body class="page-relatorio-chamados bg-gray-950 text-white min-h-screen">
     <header class="sticky top-0 z-30 bg-gray-900/70 backdrop-blur border-b border-gray-800">
         <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-4">
             <div class="flex flex-col items-start gap-1">

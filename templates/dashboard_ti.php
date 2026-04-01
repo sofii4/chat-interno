@@ -5,122 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard TI - Gestão de Chamados</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/assets/css/light-mode.css">
     <style>
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #111827; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
         .card-anim { transition: all 0.2s ease; }
         .card-anim:hover { transform: translateY(-2px); }
-
-        body.theme-light {
-            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
-            color: #0f172a;
-        }
-        body.theme-light .bg-gray-950 { background-color: #eef2ff !important; }
-        body.theme-light .bg-gray-900,
-        body.theme-light .bg-gray-900\/40,
-        body.theme-light .bg-gray-800,
-        body.theme-light .bg-gray-800\/50,
-        body.theme-light .bg-black\/30 { background-color: #ffffff !important; }
-        body.theme-light .border-gray-800,
-        body.theme-light .border-gray-700,
-        body.theme-light .border-gray-800\/50,
-        body.theme-light .border-gray-800\/70 { border-color: #cbd5e1 !important; }
-        body.theme-light .text-white { color: #0f172a !important; }
-        body.theme-light .bg-indigo-600 .text-white,
-        body.theme-light .bg-indigo-700 .text-white,
-        body.theme-light .bg-indigo-600.text-white,
-        body.theme-light .bg-indigo-700.text-white,
-        body.theme-light .bg-indigo-600,
-        body.theme-light .bg-indigo-700 {
-            color: #ffffff !important;
-        }
-        body.theme-light .text-gray-600,
-        body.theme-light .text-gray-500,
-        body.theme-light .text-gray-400 { color: #334155 !important; }
-        body.theme-light .text-gray-300,
-        body.theme-light .text-gray-200 { color: #1f2937 !important; }
-        body.theme-light .placeholder-gray-500::placeholder { color: #64748b !important; opacity: 1; }
-        body.theme-light .hover\:bg-gray-800:hover,
-        body.theme-light .hover\:bg-gray-700:hover,
-        body.theme-light .hover\:bg-gray-800\/80:hover { background-color: #e2e8f0 !important; }
-        body.theme-light .bg-indigo-600 { background-color: #6d28d9 !important; }
-        body.theme-light .hover\:bg-indigo-500:hover { background-color: #7c3aed !important; }
-        body.theme-light .text-indigo-400,
-        body.theme-light .text-indigo-300 { color: #5b21b6 !important; }
-        body.theme-light .focus\:ring-indigo-500:focus { --tw-ring-color: rgba(109, 40, 217, 0.35) !important; }
-        body.theme-light select {
-            color: #111827 !important;
-            background-color: #f8fafc !important;
-            border-color: #cbd5e1 !important;
-        }
-        body.theme-light select option {
-            color: #111827 !important;
-            background-color: #ffffff !important;
-        }
-        body.theme-light button.bg-gray-800,
-        body.theme-light a.bg-gray-800,
-        body.theme-light .bg-gray-800.border {
-            background-color: #e2e8f0 !important;
-            color: #1f2937 !important;
-            border-color: #cbd5e1 !important;
-            box-shadow: 0 1px 1px rgba(15, 23, 42, 0.04);
-        }
-        body.theme-light button.bg-gray-800:hover,
-        body.theme-light a.bg-gray-800:hover,
-        body.theme-light .bg-gray-800.border:hover {
-            background-color: #cfd8e8 !important;
-            transform: translateY(-1px);
-        }
-        body.theme-light button.bg-indigo-600,
-        body.theme-light a.bg-indigo-600,
-        body.theme-light button.bg-indigo-700,
-        body.theme-light a.bg-indigo-700 {
-            background-image: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%) !important;
-            color: #ffffff !important;
-            border-color: transparent !important;
-            box-shadow: 0 10px 20px rgba(109, 40, 217, 0.18);
-        }
-        body.theme-light button.bg-indigo-600:hover,
-        body.theme-light a.bg-indigo-600:hover,
-        body.theme-light button.bg-indigo-700:hover,
-        body.theme-light a.bg-indigo-700:hover {
-            background-image: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%) !important;
-            transform: translateY(-1px);
-        }
-        body.theme-light #modal-classificar button.bg-gray-800,
-        body.theme-light #modal-detalhes button.bg-gray-800 {
-            color: #0f172a !important;
-            font-weight: 700;
-        }
-        body.theme-light #filtro-setor,
-        body.theme-light #filtro-subcategoria,
-        body.theme-light #filtro-ordenacao,
-        body.theme-light #filtro-historico-categoria,
-        body.theme-light #filtro-historico-subcategoria,
-        body.theme-light #filtro-historico-data,
-        body.theme-light #sel-prioridade,
-        body.theme-light #sel-categoria,
-        body.theme-light #sel-subcategoria,
-        body.theme-light #taxonomia-categoria,
-        body.theme-light #taxonomia-subcategoria {
-            color: #111827 !important;
-            background-color: #f8fafc !important;
-            border-color: #cbd5e1 !important;
-        }
-        body.theme-light #modal-classificar label,
-        body.theme-light #modal-detalhes label,
-        body.theme-light #modal-taxonomias h3 {
-            color: #111827 !important;
-        }
-        body.theme-light #modal-classificar .bg-gray-800,
-        body.theme-light #modal-detalhes .bg-gray-800,
-        body.theme-light #modal-taxonomias .bg-gray-800 {
-            color: #111827 !important;
-        }
     </style>
 </head>
-<body class="bg-gray-950 text-white h-screen flex flex-col overflow-hidden">
+<body class="page-dashboard-ti bg-gray-950 text-white h-screen flex flex-col overflow-hidden">
 <?php $chamadosBootstrap = $chamadosBootstrap ?? []; ?>
 
     <header class="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 md:px-8 shrink-0">
