@@ -77,6 +77,30 @@ CREATE TABLE chamado_anexos (
     FOREIGN KEY (chamado_id) REFERENCES chamados(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS chamado_comentarios (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    chamado_id INT UNSIGNED NOT NULL,
+    usuario_id INT UNSIGNED NOT NULL,
+    conteudo   TEXT NULL,
+    tipo       ENUM('comentario','resolucao') NOT NULL DEFAULT 'comentario',
+    criado_em  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_chamado_comentarios_chamado_criado (chamado_id, criado_em),
+    FOREIGN KEY (chamado_id) REFERENCES chamados(id) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS chamado_comentario_anexos (
+    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    comentario_id INT UNSIGNED NOT NULL,
+    arquivo_path  VARCHAR(500) NOT NULL,
+    arquivo_nome  VARCHAR(255) NOT NULL,
+    mime_type     VARCHAR(100),
+    tamanho_bytes INT UNSIGNED,
+    criado_em     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_chamado_comentario_anexos_comentario (comentario_id),
+    FOREIGN KEY (comentario_id) REFERENCES chamado_comentarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Setor e usuário admin inicial para teste
 INSERT INTO setores (nome) VALUES ('TI'), ('Administrativo'), ('Operacional');
 INSERT INTO usuarios (nome, email, senha_hash, setor_id, papel)

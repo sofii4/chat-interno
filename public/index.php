@@ -50,9 +50,49 @@ $app->get('/chat', function ($request, $response) {
     ]);
 })->add(new AuthMiddleware());
 
+$app->get('/meus-chamados', function ($request, $response) {
+    $userName  = $request->getAttribute('user_nome');
+    $userId    = $request->getAttribute('user_id');
+    $userPapel = $request->getAttribute('user_papel');
+
+    $pdo = getDbConnection();
+    $stmt = $pdo->prepare(
+        "SELECT c.*, u.nome AS usuario_nome,
+                a.nome AS atribuido_nome,
+                COALESCE(r.nome, a.nome) AS resolvido_por_nome
+         FROM chamados c
+         INNER JOIN usuarios u ON u.id = c.usuario_id
+         LEFT JOIN usuarios a ON a.id = c.atribuido_a
+         LEFT JOIN usuarios r ON r.id = c.resolvido_por
+         WHERE c.usuario_id = ?
+         ORDER BY FIELD(c.status, 'aberto', 'classificado', 'em_andamento', 'resolvido', 'cancelado'), c.criado_em DESC"
+    );
+    $stmt->execute([(int) $userId]);
+    $chamadosUsuario = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+    return TemplateRenderer::render($response, __DIR__ . '/../templates/meus_chamados.php', [
+        'userName' => $userName,
+        'userId' => $userId,
+        'userPapel' => $userPapel,
+        'chamadosUsuario' => $chamadosUsuario,
+    ]);
+})->add(new AuthMiddleware());
+
 $app->get('/dashboard-ti', function ($request, $response) {
     $userName  = $request->getAttribute('user_nome');
     $userPapel = $request->getAttribute('user_papel');
+
+    $pdo = getDbConnection();
+    $sql = "SELECT c.*, u.nome AS usuario_nome,
+                   a.nome AS atribuido_nome,
+                   COALESCE(r.nome, a.nome) AS resolvido_por_nome
+            FROM chamados c
+            INNER JOIN usuarios u ON u.id = c.usuario_id
+            LEFT JOIN usuarios a ON a.id = c.atribuido_a
+            LEFT JOIN usuarios r ON r.id = c.resolvido_por
+            ORDER BY FIELD(c.prioridade, 'critica','alta','media','baixa'), c.criado_em DESC";
+    $stmt = $pdo->query($sql);
+    $chamadosBootstrap = $stmt ? $stmt->fetchAll(\PDO::FETCH_ASSOC) : [];
     
     // Se não for TI ou Admin, redireciona pro chat
     if (!in_array($userPapel, ['ti', 'admin'], true)) {
@@ -60,6 +100,21 @@ $app->get('/dashboard-ti', function ($request, $response) {
     }
 
     return TemplateRenderer::render($response, __DIR__ . '/../templates/dashboard_ti.php', [
+        'userName' => $userName,
+        'userPapel' => $userPapel,
+        'chamadosBootstrap' => $chamadosBootstrap,
+    ]);
+})->add(new AuthMiddleware());
+
+$app->get('/dashboard-ti/relatorio', function ($request, $response) {
+    $userName  = $request->getAttribute('user_nome');
+    $userPapel = $request->getAttribute('user_papel');
+
+    if (!in_array($userPapel, ['ti', 'admin'], true)) {
+        return $response->withHeader('Location', '/chat')->withStatus(302);
+    }
+
+    return TemplateRenderer::render($response, __DIR__ . '/../templates/relatorio_chamados.php', [
         'userName' => $userName,
         'userPapel' => $userPapel,
     ]);
@@ -88,7 +143,13 @@ $app->group('/api', function ($group) {
     $group->post('/chamados',              [ChamadoController::class, 'criar']);
     $group->get('/chamados',               [ChamadoController::class, 'listar']);
     $group->get('/chamados/{id}/anexos',   [ChamadoController::class, 'listarAnexos']);
+    $group->get('/chamados/{id}/comentarios', [ChamadoController::class, 'listarComentarios']);
+    $group->post('/chamados/{id}/comentarios', [ChamadoController::class, 'adicionarComentario']);
+    $group->delete('/chamados/{id}/comentarios/{comentarioId}', [ChamadoController::class, 'removerComentario']);
+    $group->get('/chamados/relatorio', [ChamadoController::class, 'relatorio']);
+    $group->get('/chamados/relatorio/csv', [ChamadoController::class, 'exportarRelatorioCsv']);
     $group->patch('/chamados/{id}/status', [ChamadoController::class, 'atualizarStatus']);
+    $group->patch('/chamados/{id}/cancelar', [ChamadoController::class, 'cancelarMeuChamado']);
     $group->patch('/chamados/{id}/classificar', [ChamadoController::class, 'classificar']);
     $group->patch('/chamados/{id}/classificacao', [ChamadoController::class, 'atualizarClassificacao']);
     $group->patch('/chamados/{id}/finalizar', [ChamadoController::class, 'finalizar']);

@@ -254,6 +254,40 @@ class ChamadoController
         return Json::json($response, ['ok' => true, 'status' => $novoStatus]);
     }
 
+    // PATCH /api/chamados/{id}/cancelar
+    public function cancelarMeuChamado(Request $request, Response $response, array $args): Response
+    {
+        $chamadoId = (int) ($args['id'] ?? 0);
+        if ($chamadoId <= 0) {
+            return Json::erro($response, 'ID de chamado invalido');
+        }
+
+        $userId = (int) $request->getAttribute('user_id');
+        $pdo = getDbConnection();
+
+        $stmt = $pdo->prepare('SELECT id, usuario_id, status FROM chamados WHERE id = ? LIMIT 1');
+        $stmt->execute([$chamadoId]);
+        $chamado = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$chamado) {
+            return Json::erro($response, 'Chamado nao encontrado', 404);
+        }
+
+        if ((int) ($chamado['usuario_id'] ?? 0) !== $userId) {
+            return Json::erro($response, 'Voce so pode cancelar seus proprios chamados', 403);
+        }
+
+        $statusAtual = (string) ($chamado['status'] ?? '');
+        if (in_array($statusAtual, ['resolvido', 'cancelado'], true)) {
+            return Json::erro($response, 'Somente chamados ativos podem ser cancelados', 409);
+        }
+
+        $stmtUpdate = $pdo->prepare('UPDATE chamados SET status = ? WHERE id = ?');
+        $stmtUpdate->execute(['cancelado', $chamadoId]);
+
+        return Json::json($response, ['ok' => true, 'status' => 'cancelado']);
+    }
+
     // GET /api/chamados/{id}/anexos
     public function listarAnexos(Request $request, Response $response, array $args): Response
     {
@@ -284,6 +318,385 @@ class ChamadoController
         $stmt->execute([$chamadoId]);
 
         return Json::json($response, $stmt->fetchAll(\PDO::FETCH_ASSOC));
+    }
+
+    // GET /api/chamados/{id}/comentarios
+    public function listarComentarios(Request $request, Response $response, array $args): Response
+    {
+        $chamadoId = (int) ($args['id'] ?? 0);
+        if ($chamadoId <= 0) {
+            return Json::erro($response, 'ID de chamado invalido');
+        }
+
+        $userId = (int) $request->getAttribute('user_id');
+        $papel = (string) $request->getAttribute('user_papel');
+        $pdo = getDbConnection();
+        $this->garantirEstruturaComentarios($pdo);
+
+        $stmtExiste = $pdo->prepare('SELECT usuario_id FROM chamados WHERE id = ? LIMIT 1');
+        $stmtExiste->execute([$chamadoId]);
+        $ownerId = (int) ($stmtExiste->fetchColumn() ?: 0);
+        if ($ownerId === 0) {
+            return Json::erro($response, 'Chamado nao encontrado', 404);
+        }
+
+        if (!in_array($papel, ['admin', 'ti'], true) && $ownerId !== $userId) {
+            return Json::erro($response, 'Acesso negado', 403);
+        }
+
+        $stmtComentarios = $pdo->prepare(
+            "SELECT cc.id, cc.chamado_id, cc.usuario_id, cc.conteudo, cc.tipo, cc.criado_em,
+                    u.nome AS usuario_nome
+             FROM chamado_comentarios cc
+             INNER JOIN usuarios u ON u.id = cc.usuario_id
+             WHERE cc.chamado_id = ?
+             ORDER BY cc.id ASC"
+        );
+        $stmtComentarios->execute([$chamadoId]);
+        $comentarios = $stmtComentarios->fetchAll(\PDO::FETCH_ASSOC);
+
+        if (empty($comentarios)) {
+            return Json::json($response, []);
+        }
+
+        $comentarioIds = array_map(static fn(array $row): int => (int) $row['id'], $comentarios);
+        $placeholders = implode(',', array_fill(0, count($comentarioIds), '?'));
+        $stmtAnexos = $pdo->prepare(
+            "SELECT id, comentario_id, arquivo_path, arquivo_nome, mime_type, tamanho_bytes, criado_em
+             FROM chamado_comentario_anexos
+             WHERE comentario_id IN ({$placeholders})
+             ORDER BY id ASC"
+        );
+        $stmtAnexos->execute($comentarioIds);
+        $anexosRows = $stmtAnexos->fetchAll(\PDO::FETCH_ASSOC);
+
+        $anexosPorComentario = [];
+        foreach ($anexosRows as $anexo) {
+            $cid = (int) ($anexo['comentario_id'] ?? 0);
+            if (!isset($anexosPorComentario[$cid])) {
+                $anexosPorComentario[$cid] = [];
+            }
+            $anexosPorComentario[$cid][] = $anexo;
+        }
+
+        foreach ($comentarios as &$comentario) {
+            $cid = (int) ($comentario['id'] ?? 0);
+            $comentario['anexos'] = $anexosPorComentario[$cid] ?? [];
+        }
+        unset($comentario);
+
+        return Json::json($response, $comentarios);
+    }
+
+    // POST /api/chamados/{id}/comentarios
+    public function adicionarComentario(Request $request, Response $response, array $args): Response
+    {
+        $papel = (string) $request->getAttribute('user_papel');
+        if (!in_array($papel, ['admin', 'ti'], true)) {
+            return Json::erro($response, 'Apenas TI pode comentar chamados', 403);
+        }
+
+        $chamadoId = (int) ($args['id'] ?? 0);
+        if ($chamadoId <= 0) {
+            return Json::erro($response, 'ID de chamado invalido');
+        }
+
+        $userId = (int) $request->getAttribute('user_id');
+        $data = (array) $request->getParsedBody();
+        $files = $request->getUploadedFiles();
+
+        $conteudo = trim((string) ($data['comentario'] ?? ''));
+        $tipo = (string) ($data['tipo'] ?? 'comentario');
+        $tipo = $tipo === 'resolucao' ? 'resolucao' : 'comentario';
+        $anexos = $this->normalizarArquivosAnexos($files);
+
+        if ($conteudo === '' && empty($anexos)) {
+            return Json::erro($response, 'Informe um comentario ou adicione ao menos um anexo');
+        }
+
+        $pdo = getDbConnection();
+        $this->garantirEstruturaComentarios($pdo);
+
+        $stmtExiste = $pdo->prepare('SELECT COUNT(*) FROM chamados WHERE id = ?');
+        $stmtExiste->execute([$chamadoId]);
+        if ((int) $stmtExiste->fetchColumn() === 0) {
+            return Json::erro($response, 'Chamado nao encontrado', 404);
+        }
+
+        $resultado = $this->salvarComentarioComAnexos($pdo, $chamadoId, $userId, $conteudo, $tipo, $anexos);
+
+        return Json::json($response, [
+            'ok' => true,
+            'comentario_id' => $resultado['comentario_id'],
+            'anexos_salvos' => $resultado['anexos_salvos'],
+            'anexo_erros' => $resultado['anexo_erros'],
+        ], 201);
+    }
+
+    // DELETE /api/chamados/{id}/comentarios/{comentarioId}
+    public function removerComentario(Request $request, Response $response, array $args): Response
+    {
+        $papel = (string) $request->getAttribute('user_papel');
+        if (!in_array($papel, ['admin', 'ti'], true)) {
+            return Json::erro($response, 'Apenas TI pode excluir comentarios', 403);
+        }
+
+        $chamadoId = (int) ($args['id'] ?? 0);
+        $comentarioId = (int) ($args['comentarioId'] ?? 0);
+        if ($chamadoId <= 0 || $comentarioId <= 0) {
+            return Json::erro($response, 'Identificadores invalidos');
+        }
+
+        $pdo = getDbConnection();
+        $this->garantirEstruturaComentarios($pdo);
+
+        $stmtChamado = $pdo->prepare('SELECT status FROM chamados WHERE id = ? LIMIT 1');
+        $stmtChamado->execute([$chamadoId]);
+        $status = (string) ($stmtChamado->fetchColumn() ?: '');
+        if ($status === 'resolvido') {
+            return Json::erro($response, 'Comentarios de chamados finalizados sao somente leitura', 409);
+        }
+
+        $stmtComentario = $pdo->prepare('SELECT id FROM chamado_comentarios WHERE id = ? AND chamado_id = ? LIMIT 1');
+        $stmtComentario->execute([$comentarioId, $chamadoId]);
+        if (!$stmtComentario->fetchColumn()) {
+            return Json::erro($response, 'Comentario nao encontrado', 404);
+        }
+
+        $stmtDelete = $pdo->prepare('DELETE FROM chamado_comentarios WHERE id = ? AND chamado_id = ?');
+        $stmtDelete->execute([$comentarioId, $chamadoId]);
+
+        return Json::json($response, ['ok' => true]);
+    }
+
+    // GET /api/chamados/relatorio
+    public function relatorio(Request $request, Response $response): Response
+    {
+        $papel = (string) $request->getAttribute('user_papel');
+        if (!in_array($papel, ['admin', 'ti'], true)) {
+            return Json::erro($response, 'Apenas TI/Admin pode visualizar relatorios', 403);
+        }
+
+        $pdo = getDbConnection();
+        $this->garantirColunaResolvidoPor($pdo);
+
+        return Json::json($response, $this->obterDadosRelatorio($pdo));
+    }
+
+    // GET /api/chamados/relatorio/csv
+    public function exportarRelatorioCsv(Request $request, Response $response): Response
+    {
+        $papel = (string) $request->getAttribute('user_papel');
+        if (!in_array($papel, ['admin', 'ti'], true)) {
+            return Json::erro($response, 'Apenas TI/Admin pode exportar relatorios', 403);
+        }
+
+        $pdo = getDbConnection();
+        $this->garantirColunaResolvidoPor($pdo);
+
+        $dados = $this->obterDadosRelatorio($pdo);
+        $csv = $this->montarCsvRelatorio($dados);
+
+        $nomeArquivo = 'relatorio-chamados-' . date('Ymd-His') . '.csv';
+        $response->getBody()->write($csv);
+
+        return $response
+            ->withHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->withHeader('Content-Disposition', 'attachment; filename="' . $nomeArquivo . '"');
+    }
+
+    private function obterDadosRelatorio(\PDO $pdo): array
+    {
+        $this->garantirColunaResolvidoPor($pdo);
+
+        $resumoStmt = $pdo->query(
+            "SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN status IN ('aberto','classificado','em_andamento') THEN 1 ELSE 0 END) AS abertos,
+                SUM(CASE WHEN status = 'resolvido' THEN 1 ELSE 0 END) AS resolvidos,
+                SUM(CASE WHEN status = 'cancelado' THEN 1 ELSE 0 END) AS cancelados,
+                AVG(CASE WHEN status = 'resolvido' THEN TIMESTAMPDIFF(MINUTE, criado_em, atualizado_em) END) AS tempo_medio_minutos
+             FROM chamados"
+        );
+        $resumo = $resumoStmt->fetch(\PDO::FETCH_ASSOC) ?: [];
+
+        $categoriasStmt = $pdo->query(
+            "SELECT
+                COALESCE(NULLIF(categoria, ''), 'Nao informada') AS categoria,
+                COUNT(*) AS total,
+                SUM(CASE WHEN status IN ('aberto','classificado','em_andamento') THEN 1 ELSE 0 END) AS abertos,
+                SUM(CASE WHEN status = 'resolvido' THEN 1 ELSE 0 END) AS resolvidos,
+                AVG(CASE WHEN status = 'resolvido' THEN TIMESTAMPDIFF(MINUTE, criado_em, atualizado_em) END) AS tempo_medio_minutos
+             FROM chamados
+             GROUP BY COALESCE(NULLIF(categoria, ''), 'Nao informada')
+             ORDER BY total DESC"
+        );
+        $categorias = $categoriasStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $subcategoriasStmt = $pdo->query(
+            "SELECT
+                COALESCE(NULLIF(categoria, ''), 'Nao informada') AS categoria,
+                COALESCE(NULLIF(subcategoria, ''), 'Nao informada') AS subcategoria,
+                COUNT(*) AS total,
+                SUM(CASE WHEN status IN ('aberto','classificado','em_andamento') THEN 1 ELSE 0 END) AS abertos,
+                SUM(CASE WHEN status = 'resolvido' THEN 1 ELSE 0 END) AS resolvidos,
+                AVG(CASE WHEN status = 'resolvido' THEN TIMESTAMPDIFF(MINUTE, criado_em, atualizado_em) END) AS tempo_medio_minutos
+             FROM chamados
+             GROUP BY COALESCE(NULLIF(categoria, ''), 'Nao informada'), COALESCE(NULLIF(subcategoria, ''), 'Nao informada')
+             ORDER BY total DESC"
+        );
+        $subcategorias = $subcategoriasStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $solicitantesStmt = $pdo->query(
+            "SELECT
+                u.id AS usuario_id,
+                u.nome AS usuario_nome,
+                COUNT(*) AS total,
+                SUM(CASE WHEN c.status IN ('aberto','classificado','em_andamento') THEN 1 ELSE 0 END) AS abertos,
+                SUM(CASE WHEN c.status = 'resolvido' THEN 1 ELSE 0 END) AS resolvidos
+             FROM chamados c
+             INNER JOIN usuarios u ON u.id = c.usuario_id
+             GROUP BY u.id, u.nome
+             ORDER BY total DESC"
+        );
+        $solicitantes = $solicitantesStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $finalizadoresStmt = $pdo->query(
+            "SELECT
+                COALESCE(r.id, a.id) AS usuario_id,
+                COALESCE(r.nome, a.nome, 'Nao informado') AS usuario_nome,
+                COUNT(*) AS total_resolvidos,
+                AVG(TIMESTAMPDIFF(MINUTE, c.criado_em, c.atualizado_em)) AS tempo_medio_minutos
+             FROM chamados c
+             LEFT JOIN usuarios r ON r.id = c.resolvido_por
+             LEFT JOIN usuarios a ON a.id = c.atribuido_a
+             WHERE c.status = 'resolvido'
+             GROUP BY COALESCE(r.id, a.id), COALESCE(r.nome, a.nome, 'Nao informado')
+             ORDER BY total_resolvidos DESC"
+        );
+        $finalizadores = $finalizadoresStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $serieStmt = $pdo->query(
+            "SELECT
+                DATE(dia) AS dia,
+                SUM(abertos) AS abertos,
+                SUM(resolvidos) AS resolvidos
+             FROM (
+                SELECT DATE(criado_em) AS dia, COUNT(*) AS abertos, 0 AS resolvidos
+                FROM chamados
+                WHERE criado_em >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                GROUP BY DATE(criado_em)
+                UNION ALL
+                SELECT DATE(atualizado_em) AS dia, 0 AS abertos, COUNT(*) AS resolvidos
+                FROM chamados
+                WHERE status = 'resolvido'
+                  AND atualizado_em >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                GROUP BY DATE(atualizado_em)
+             ) t
+             GROUP BY DATE(dia)
+             ORDER BY DATE(dia) ASC"
+        );
+        $serie30dias = $serieStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return [
+            'resumo' => [
+                'total' => (int) ($resumo['total'] ?? 0),
+                'abertos' => (int) ($resumo['abertos'] ?? 0),
+                'resolvidos' => (int) ($resumo['resolvidos'] ?? 0),
+                'cancelados' => (int) ($resumo['cancelados'] ?? 0),
+                'tempo_medio_minutos' => (float) ($resumo['tempo_medio_minutos'] ?? 0),
+            ],
+            'categorias' => $categorias,
+            'subcategorias' => $subcategorias,
+            'solicitantes' => $solicitantes,
+            'finalizadores' => $finalizadores,
+            'serie_30_dias' => $serie30dias,
+        ];
+    }
+
+    private function montarCsvRelatorio(array $dados): string
+    {
+        $stream = fopen('php://temp', 'r+');
+        if ($stream === false) {
+            return '';
+        }
+
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, ['Secao', 'Campo', 'Valor'], ';');
+
+        $resumo = (array) ($dados['resumo'] ?? []);
+        fputcsv($stream, ['Resumo', 'Total', (string) ((int) ($resumo['total'] ?? 0))], ';');
+        fputcsv($stream, ['Resumo', 'Abertos', (string) ((int) ($resumo['abertos'] ?? 0))], ';');
+        fputcsv($stream, ['Resumo', 'Resolvidos', (string) ((int) ($resumo['resolvidos'] ?? 0))], ';');
+        fputcsv($stream, ['Resumo', 'Cancelados', (string) ((int) ($resumo['cancelados'] ?? 0))], ';');
+        fputcsv($stream, ['Resumo', 'Tempo medio minutos', (string) ((float) ($resumo['tempo_medio_minutos'] ?? 0))], ';');
+
+        fputcsv($stream, [], ';');
+        fputcsv($stream, ['Categorias', 'Categoria', 'Total', 'Abertos', 'Resolvidos', 'Tempo medio minutos'], ';');
+        foreach ((array) ($dados['categorias'] ?? []) as $item) {
+            fputcsv($stream, [
+                'Categorias',
+                (string) ($item['categoria'] ?? 'Nao informada'),
+                (string) ((int) ($item['total'] ?? 0)),
+                (string) ((int) ($item['abertos'] ?? 0)),
+                (string) ((int) ($item['resolvidos'] ?? 0)),
+                (string) ((float) ($item['tempo_medio_minutos'] ?? 0)),
+            ], ';');
+        }
+
+        fputcsv($stream, [], ';');
+        fputcsv($stream, ['Subcategorias', 'Categoria', 'Subcategoria', 'Total', 'Abertos', 'Resolvidos', 'Tempo medio minutos'], ';');
+        foreach ((array) ($dados['subcategorias'] ?? []) as $item) {
+            fputcsv($stream, [
+                'Subcategorias',
+                (string) ($item['categoria'] ?? 'Nao informada'),
+                (string) ($item['subcategoria'] ?? 'Nao informada'),
+                (string) ((int) ($item['total'] ?? 0)),
+                (string) ((int) ($item['abertos'] ?? 0)),
+                (string) ((int) ($item['resolvidos'] ?? 0)),
+                (string) ((float) ($item['tempo_medio_minutos'] ?? 0)),
+            ], ';');
+        }
+
+        fputcsv($stream, [], ';');
+        fputcsv($stream, ['Solicitantes', 'Usuario', 'Total', 'Abertos', 'Resolvidos'], ';');
+        foreach ((array) ($dados['solicitantes'] ?? []) as $item) {
+            fputcsv($stream, [
+                'Solicitantes',
+                (string) ($item['usuario_nome'] ?? 'Nao informado'),
+                (string) ((int) ($item['total'] ?? 0)),
+                (string) ((int) ($item['abertos'] ?? 0)),
+                (string) ((int) ($item['resolvidos'] ?? 0)),
+            ], ';');
+        }
+
+        fputcsv($stream, [], ';');
+        fputcsv($stream, ['Finalizadores', 'Usuario', 'Resolvidos', 'Tempo medio minutos'], ';');
+        foreach ((array) ($dados['finalizadores'] ?? []) as $item) {
+            fputcsv($stream, [
+                'Finalizadores',
+                (string) ($item['usuario_nome'] ?? 'Nao informado'),
+                (string) ((int) ($item['total_resolvidos'] ?? 0)),
+                (string) ((float) ($item['tempo_medio_minutos'] ?? 0)),
+            ], ';');
+        }
+
+        fputcsv($stream, [], ';');
+        fputcsv($stream, ['Serie 30 dias', 'Dia', 'Abertos', 'Resolvidos'], ';');
+        foreach ((array) ($dados['serie_30_dias'] ?? []) as $item) {
+            fputcsv($stream, [
+                'Serie 30 dias',
+                (string) ($item['dia'] ?? ''),
+                (string) ((int) ($item['abertos'] ?? 0)),
+                (string) ((int) ($item['resolvidos'] ?? 0)),
+            ], ';');
+        }
+
+        rewind($stream);
+        $csv = stream_get_contents($stream);
+        fclose($stream);
+
+        return $csv === false ? '' : $csv;
     }
 
     // Salva arquivo de forma segura
@@ -559,6 +972,10 @@ class ChamadoController
             $id = (int) $args['id'];
             $finalizadorId = (int) $request->getAttribute('user_id');
             $papel = (string) $request->getAttribute('user_papel');
+            $data = (array) $request->getParsedBody();
+            $files = $request->getUploadedFiles();
+            $comentarioResolucao = trim((string) ($data['comentario'] ?? ''));
+            $anexosResolucao = $this->normalizarArquivosAnexos($files);
 
             if (!in_array($papel, ['admin', 'ti'], true)) {
                 return Json::erro($response, 'Apenas TI pode finalizar chamados', 403);
@@ -588,6 +1005,22 @@ class ChamadoController
             } else {
                 $stmtUp = $pdo->prepare("UPDATE chamados SET status = 'resolvido', atribuido_a = ? WHERE id = ?");
                 $stmtUp->execute([$finalizadorId, $id]);
+            }
+
+            if ($comentarioResolucao !== '' || !empty($anexosResolucao)) {
+                try {
+                    $this->garantirEstruturaComentarios($pdo);
+                    $this->salvarComentarioComAnexos(
+                        $pdo,
+                        $id,
+                        $finalizadorId,
+                        $comentarioResolucao,
+                        'resolucao',
+                        $anexosResolucao
+                    );
+                } catch (\Throwable $eComentario) {
+                    error_log('Aviso: nao foi possivel salvar comentario de resolucao: ' . $eComentario->getMessage());
+                }
             }
 
             // 3. Bloco isolado para a mensagem (se falhar, o chamado fecha mesmo assim)
@@ -660,6 +1093,178 @@ class ChamadoController
 
         $stmt = $pdo->prepare("\n            INSERT INTO chamado_taxonomias (categoria, subcategoria, ativo)\n            VALUES (?, ?, 1)\n            ON DUPLICATE KEY UPDATE ativo = 1\n        ");
         $stmt->execute([$categoria, $subcategoria]);
+    }
+
+    private function salvarComentarioComAnexos(
+        \PDO $pdo,
+        int $chamadoId,
+        int $userId,
+        string $conteudo,
+        string $tipo,
+        array $anexos
+    ): array {
+        $stmtComentario = $pdo->prepare(
+            'INSERT INTO chamado_comentarios (chamado_id, usuario_id, conteudo, tipo) VALUES (?, ?, ?, ?)'
+        );
+        $stmtComentario->execute([
+            $chamadoId,
+            $userId,
+            $conteudo !== '' ? $conteudo : null,
+            $tipo === 'resolucao' ? 'resolucao' : 'comentario',
+        ]);
+        $comentarioId = (int) $pdo->lastInsertId();
+
+        $anexosSalvos = [];
+        $anexoErros = [];
+
+        foreach ($anexos as $arquivo) {
+            $nomeArquivo = method_exists($arquivo, 'getClientFilename') ? (string) $arquivo->getClientFilename() : 'arquivo';
+
+            if ($arquivo->getError() !== UPLOAD_ERR_OK) {
+                $anexoErros[] = [
+                    'arquivo' => $nomeArquivo,
+                    'erro' => 'Falha no upload (codigo ' . $arquivo->getError() . ')',
+                ];
+                continue;
+            }
+
+            try {
+                $path = $this->salvarArquivoComentario($arquivo, $chamadoId, $comentarioId);
+
+                $stmtAnexo = $pdo->prepare(
+                    'INSERT INTO chamado_comentario_anexos (comentario_id, arquivo_path, arquivo_nome, mime_type, tamanho_bytes)
+                     VALUES (?, ?, ?, ?, ?)'
+                );
+                $stmtAnexo->execute([
+                    $comentarioId,
+                    $path,
+                    (string) $arquivo->getClientFilename(),
+                    (string) $arquivo->getClientMediaType(),
+                    (int) $arquivo->getSize(),
+                ]);
+
+                $anexosSalvos[] = (string) $arquivo->getClientFilename();
+            } catch (\Throwable $e) {
+                error_log('Erro ao salvar anexo de comentario: ' . $e->getMessage());
+                $anexoErros[] = [
+                    'arquivo' => $nomeArquivo,
+                    'erro' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return [
+            'comentario_id' => $comentarioId,
+            'anexos_salvos' => $anexosSalvos,
+            'anexo_erros' => $anexoErros,
+        ];
+    }
+
+    private function salvarArquivoComentario($arquivo, int $chamadoId, int $comentarioId): string
+    {
+        $mimesPermitidos = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+            'image/jpg', 'image/heic', 'image/heif',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'text/plain',
+            'application/octet-stream',
+            'application/x-msdownload',
+            'application/x-dosexec',
+            'model/step',
+            'application/step',
+        ];
+        $extensoesPermitidas = [
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif',
+            'pdf', 'doc', 'docx', 'txt',
+            'step', 'stp', 'exe',
+        ];
+
+        $tamanhoMax = (int) ($_ENV['UPLOAD_MAX_SIZE'] ?? 10485760);
+        if ($arquivo->getSize() > $tamanhoMax) {
+            throw new \RuntimeException('Arquivo muito grande (maximo 10MB)');
+        }
+
+        $tmpPath = $arquivo->getStream()->getMetadata('uri');
+        if (!$tmpPath || !is_file($tmpPath)) {
+            throw new \RuntimeException('Arquivo temporario invalido para upload');
+        }
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeReal = $finfo->file($tmpPath);
+        $ext = strtolower(pathinfo((string) $arquivo->getClientFilename(), PATHINFO_EXTENSION));
+
+        if (!in_array($mimeReal, $mimesPermitidos, true) && !in_array($ext, $extensoesPermitidas, true)) {
+            throw new \RuntimeException('Tipo nao permitido: ' . $mimeReal);
+        }
+
+        if ($ext === '') {
+            $mapaExtensao = [
+                'image/jpeg' => 'jpg',
+                'image/jpg' => 'jpg',
+                'image/png' => 'png',
+                'image/gif' => 'gif',
+                'image/webp' => 'webp',
+                'image/heic' => 'heic',
+                'image/heif' => 'heif',
+                'application/pdf' => 'pdf',
+                'application/msword' => 'doc',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                'text/plain' => 'txt',
+                'application/x-msdownload' => 'exe',
+                'application/x-dosexec' => 'exe',
+                'application/octet-stream' => 'bin',
+            ];
+            $ext = $mapaExtensao[$mimeReal] ?? 'bin';
+        }
+
+        $novoNome = bin2hex(random_bytes(16)) . '.' . $ext;
+        $destDir = __DIR__ . '/../../public/uploads/chamados-comentarios/' . $chamadoId . '/' . $comentarioId . '/';
+
+        if (!is_dir($destDir)) {
+            mkdir($destDir, 0775, true);
+        }
+
+        $caminhoCompleto = $destDir . $novoNome;
+        $arquivo->moveTo($caminhoCompleto);
+
+        return 'chamados-comentarios/' . $chamadoId . '/' . $comentarioId . '/' . $novoNome;
+    }
+
+    private function garantirEstruturaComentarios(\PDO $pdo): void
+    {
+        try {
+            $pdo->exec(
+                "CREATE TABLE IF NOT EXISTS chamado_comentarios (
+                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    chamado_id INT UNSIGNED NOT NULL,
+                    usuario_id INT UNSIGNED NOT NULL,
+                    conteudo TEXT NULL,
+                    tipo ENUM('comentario','resolucao') NOT NULL DEFAULT 'comentario',
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_chamado_criado (chamado_id, criado_em),
+                    CONSTRAINT fk_chamado_comentarios_chamado FOREIGN KEY (chamado_id) REFERENCES chamados(id) ON DELETE CASCADE,
+                    CONSTRAINT fk_chamado_comentarios_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            );
+
+            $pdo->exec(
+                "CREATE TABLE IF NOT EXISTS chamado_comentario_anexos (
+                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    comentario_id INT UNSIGNED NOT NULL,
+                    arquivo_path VARCHAR(500) NOT NULL,
+                    arquivo_nome VARCHAR(255) NOT NULL,
+                    mime_type VARCHAR(100) NULL,
+                    tamanho_bytes INT UNSIGNED NULL,
+                    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_comentario (comentario_id),
+                    CONSTRAINT fk_chamado_comentario_anexos_comentario FOREIGN KEY (comentario_id) REFERENCES chamado_comentarios(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            );
+        } catch (\Throwable $e) {
+            error_log('Aviso: nao foi possivel garantir estrutura de comentarios: ' . $e->getMessage());
+        }
     }
 
     private function garantirColunaResolvidoPor(\PDO $pdo): void

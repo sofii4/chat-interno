@@ -103,6 +103,34 @@
             </button>
         </div>
 
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                <input id="filtro-usuarios-busca" type="text" placeholder="Buscar por nome, e-mail, setor ou papel"
+                       class="xl:col-span-2 bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <select id="filtro-usuarios-papel"
+                        class="bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Todos os papéis</option>
+                    <option value="admin">Admin</option>
+                    <option value="ti">TI</option>
+                    <option value="usuario">Usuário</option>
+                </select>
+                <select id="filtro-usuarios-setor"
+                        class="bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Todos os setores</option>
+                </select>
+                <div class="flex items-center gap-2">
+                    <label for="filtro-usuarios-per-page" class="text-xs text-gray-400">Por página</label>
+                    <select id="filtro-usuarios-per-page"
+                            class="flex-1 bg-gray-800 border border-gray-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="7" selected>7</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
         <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
             <div class="overflow-x-auto">
             <table class="w-full">
@@ -120,6 +148,14 @@
                     <tr><td colspan="6" class="text-center py-8 text-gray-500 text-sm">Carregando...</td></tr>
                 </tbody>
             </table>
+            </div>
+            <div class="border-t border-gray-800 px-4 md:px-6 py-3 flex items-center justify-between gap-3">
+                <p id="usuarios-paginacao-info" class="text-xs text-gray-500">0 usuários</p>
+                <div class="flex items-center gap-2">
+                    <button id="usuarios-paginacao-prev" class="px-3 py-1.5 text-xs rounded-lg bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 transition">Anterior</button>
+                    <span id="usuarios-paginacao-page" class="text-xs text-gray-400">Página 1 de 1</span>
+                    <button id="usuarios-paginacao-next" class="px-3 py-1.5 text-xs rounded-lg bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 transition">Próxima</button>
+                </div>
             </div>
         </div>
     </div>

@@ -1,21 +1,55 @@
 const PAPEIS = { admin: 'Admin', ti: 'TI', usuario: 'Usuário' };
 const CORES_PAPEL = { admin: 'bg-purple-500/20 text-purple-400', ti: 'bg-blue-500/20 text-blue-400', usuario: 'bg-gray-500/20 text-gray-400' };
 let usuarioEditandoId = null;
+let usuariosPaginaAtual = [];
+let debounceBuscaUsuarios = null;
+const estadoUsuarios = {
+    page: 1,
+    perPage: 7,
+    q: '',
+    papel: '',
+    setor: '',
+    total: 0,
+    totalPages: 1,
+};
 
 // ── Tabs ──────────────────────────────────────
 function trocarAba(aba) {
     document.getElementById('aba-usuarios').classList.toggle('hidden', aba !== 'usuarios');
-    document.getElementById('aba-setores').classList.toggle('hidden',  aba !== 'setores');
+    document.getElementById('aba-setores').classList.toggle('hidden', aba !== 'setores');
     document.getElementById('tab-usuarios').className = `tab-btn px-5 py-3 text-sm font-medium border-b-2 transition ${aba === 'usuarios' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-white'}`;
-    document.getElementById('tab-setores').className  = `tab-btn px-5 py-3 text-sm font-medium border-b-2 transition ${aba === 'setores'  ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-white'}`;
+    document.getElementById('tab-setores').className = `tab-btn px-5 py-3 text-sm font-medium border-b-2 transition ${aba === 'setores' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-white'}`;
     if (aba === 'setores') carregarSetores();
 }
 
 // ── Usuários ──────────────────────────────────
 async function carregarUsuarios() {
-    const res   = await fetch('/api/admin/usuarios');
-    const lista = await res.json();
+    const params = new URLSearchParams({
+        page: String(estadoUsuarios.page),
+        per_page: String(estadoUsuarios.perPage),
+    });
+    if (estadoUsuarios.q) params.set('q', estadoUsuarios.q);
+    if (estadoUsuarios.papel) params.set('papel', estadoUsuarios.papel);
+    if (estadoUsuarios.setor) params.set('setor', estadoUsuarios.setor);
+
+    const res = await fetch('/api/admin/usuarios?' + params.toString());
+    const payload = await res.json();
+    const lista = Array.isArray(payload) ? payload : (payload.data || []);
+    const pag = payload && payload.pagination ? payload.pagination : null;
+
+    if (pag) {
+        estadoUsuarios.page = Number(pag.page || 1);
+        estadoUsuarios.perPage = Number(pag.per_page || estadoUsuarios.perPage || 10);
+        estadoUsuarios.total = Number(pag.total || 0);
+        estadoUsuarios.totalPages = Number(pag.total_pages || 1);
+    } else {
+        estadoUsuarios.total = lista.length;
+        estadoUsuarios.totalPages = 1;
+    }
+
+    usuariosPaginaAtual = lista;
     const tbody = document.getElementById('tabela-usuarios');
+    atualizarRodapePaginacao();
 
     if (!lista.length) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500 text-sm">Nenhum usuário cadastrado</td></tr>';
@@ -63,12 +97,34 @@ async function carregarUsuarios() {
         </tr>`).join('');
 }
 
+function atualizarRodapePaginacao() {
+    const info = document.getElementById('usuarios-paginacao-info');
+    const page = document.getElementById('usuarios-paginacao-page');
+    const prev = document.getElementById('usuarios-paginacao-prev');
+    const next = document.getElementById('usuarios-paginacao-next');
+
+    if (info) {
+        if (estadoUsuarios.total === 0) {
+            info.textContent = '0 usuários';
+        } else {
+            const inicio = ((estadoUsuarios.page - 1) * estadoUsuarios.perPage) + 1;
+            const fim = Math.min(estadoUsuarios.page * estadoUsuarios.perPage, estadoUsuarios.total);
+            info.textContent = `Mostrando ${inicio}-${fim} de ${estadoUsuarios.total} usuários`;
+        }
+    }
+    if (page) page.textContent = `Página ${estadoUsuarios.page} de ${Math.max(1, estadoUsuarios.totalPages)}`;
+    if (prev) prev.disabled = estadoUsuarios.page <= 1;
+    if (next) next.disabled = estadoUsuarios.page >= Math.max(1, estadoUsuarios.totalPages);
+    if (prev) prev.classList.toggle('opacity-50', prev.disabled);
+    if (next) next.classList.toggle('opacity-50', next.disabled);
+}
+
 function abrirModalUsuario() {
     usuarioEditandoId = null;
     document.getElementById('modal-usuario-titulo').textContent = 'Novo Usuário';
     document.getElementById('senha-hint').textContent = '(mínimo 6 caracteres)';
-    document.getElementById('usuario-id').value    = '';
-    document.getElementById('usuario-nome').value  = '';
+    document.getElementById('usuario-id').value = '';
+    document.getElementById('usuario-nome').value = '';
     document.getElementById('usuario-email').value = '';
     document.getElementById('usuario-senha').value = '';
     document.getElementById('usuario-papel').value = 'usuario';
@@ -78,15 +134,13 @@ function abrirModalUsuario() {
 }
 
 async function editarUsuario(id) {
-    const res  = await fetch('/api/admin/usuarios');
-    const lista = await res.json();
-    const u    = lista.find(x => x.id === id);
+    const u = usuariosPaginaAtual.find(x => Number(x.id) === Number(id));
     if (!u) return;
 
     usuarioEditandoId = id;
     document.getElementById('modal-usuario-titulo').textContent = 'Editar Usuário';
     document.getElementById('senha-hint').textContent = '(deixe em branco para não alterar)';
-    document.getElementById('usuario-nome').value  = u.nome;
+    document.getElementById('usuario-nome').value = u.nome;
     document.getElementById('usuario-email').value = u.email;
     document.getElementById('usuario-email').disabled = true;
     document.getElementById('usuario-senha').value = '';
@@ -95,6 +149,9 @@ async function editarUsuario(id) {
 
     // Seleciona o setor correto após carregar
     await carregarSetoresNoSelect();
+    if (u.setor_id) {
+        document.getElementById('usuario-setor').value = String(u.setor_id);
+    }
 }
 
 function fecharModalUsuario() {
@@ -102,23 +159,23 @@ function fecharModalUsuario() {
 }
 
 async function salvarUsuario() {
-    const btn   = document.getElementById('btn-salvar-usuario');
+    const btn = document.getElementById('btn-salvar-usuario');
     btn.disabled = true;
     btn.textContent = 'Salvando...';
 
     const body = new URLSearchParams({
-        nome:     document.getElementById('usuario-nome').value.trim(),
-        email:    document.getElementById('usuario-email').value.trim(),
-        senha:    document.getElementById('usuario-senha').value,
-        papel:    document.getElementById('usuario-papel').value,
+        nome: document.getElementById('usuario-nome').value.trim(),
+        email: document.getElementById('usuario-email').value.trim(),
+        senha: document.getElementById('usuario-senha').value,
+        papel: document.getElementById('usuario-papel').value,
         setor_id: document.getElementById('usuario-setor').value,
     });
 
     try {
-        const url    = usuarioEditandoId ? `/api/admin/usuarios/${usuarioEditandoId}` : '/api/admin/usuarios';
+        const url = usuarioEditandoId ? `/api/admin/usuarios/${usuarioEditandoId}` : '/api/admin/usuarios';
         const method = usuarioEditandoId ? 'PATCH' : 'POST';
-        const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
-        const data   = await res.json();
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        const data = await res.json();
 
         if (!res.ok) throw new Error(data.erro ?? 'Erro ao salvar');
 
@@ -151,9 +208,9 @@ async function reativarUsuario(id, nome) {
 
 // ── Setores ───────────────────────────────────
 async function carregarSetores() {
-    const res   = await fetch('/api/admin/setores');
+    const res = await fetch('/api/admin/setores');
     const lista = await res.json();
-    const grid  = document.getElementById('grid-setores');
+    const grid = document.getElementById('grid-setores');
 
     if (!lista.length) {
         grid.innerHTML = '<div class="text-center py-8 text-gray-500 text-sm col-span-3">Nenhum setor cadastrado</div>';
@@ -179,13 +236,81 @@ async function carregarSetores() {
 }
 
 async function carregarSetoresNoSelect() {
-    const res    = await fetch('/api/admin/setores');
-    const lista  = await res.json();
+    const res = await fetch('/api/admin/setores');
+    const lista = await res.json();
     const select = document.getElementById('usuario-setor');
-    const atual  = select.value;
+    const filtroSetor = document.getElementById('filtro-usuarios-setor');
+    const atual = select.value;
     select.innerHTML = '<option value="">Sem setor</option>' +
         lista.map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
     if (atual) select.value = atual;
+
+    if (filtroSetor) {
+        const atualFiltro = filtroSetor.value;
+        filtroSetor.innerHTML = '<option value="">Todos os setores</option>' +
+            lista.map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
+        if (atualFiltro) filtroSetor.value = atualFiltro;
+    }
+}
+
+function configurarFiltrosUsuarios() {
+    const inputBusca = document.getElementById('filtro-usuarios-busca');
+    const filtroPapel = document.getElementById('filtro-usuarios-papel');
+    const filtroSetor = document.getElementById('filtro-usuarios-setor');
+    const perPage = document.getElementById('filtro-usuarios-per-page');
+    const prev = document.getElementById('usuarios-paginacao-prev');
+    const next = document.getElementById('usuarios-paginacao-next');
+
+    if (inputBusca) {
+        inputBusca.addEventListener('input', function () {
+            clearTimeout(debounceBuscaUsuarios);
+            debounceBuscaUsuarios = setTimeout(function () {
+                estadoUsuarios.q = inputBusca.value.trim();
+                estadoUsuarios.page = 1;
+                carregarUsuarios();
+            }, 250);
+        });
+    }
+
+    if (filtroPapel) {
+        filtroPapel.addEventListener('change', function () {
+            estadoUsuarios.papel = filtroPapel.value;
+            estadoUsuarios.page = 1;
+            carregarUsuarios();
+        });
+    }
+
+    if (filtroSetor) {
+        filtroSetor.addEventListener('change', function () {
+            estadoUsuarios.setor = filtroSetor.value;
+            estadoUsuarios.page = 1;
+            carregarUsuarios();
+        });
+    }
+
+    if (perPage) {
+        perPage.addEventListener('change', function () {
+            estadoUsuarios.perPage = Number(perPage.value || 7);
+            estadoUsuarios.page = 1;
+            carregarUsuarios();
+        });
+    }
+
+    if (prev) {
+        prev.addEventListener('click', function () {
+            if (estadoUsuarios.page <= 1) return;
+            estadoUsuarios.page -= 1;
+            carregarUsuarios();
+        });
+    }
+
+    if (next) {
+        next.addEventListener('click', function () {
+            if (estadoUsuarios.page >= estadoUsuarios.totalPages) return;
+            estadoUsuarios.page += 1;
+            carregarUsuarios();
+        });
+    }
 }
 
 function abrirModalSetor() {
@@ -199,11 +324,11 @@ function fecharModalSetor() {
 }
 
 async function salvarSetor() {
-    const nome     = document.getElementById('setor-nome').value.trim();
+    const nome = document.getElementById('setor-nome').value.trim();
     const descricao = document.getElementById('setor-descricao').value.trim();
     if (!nome) { alert('Informe o nome do setor.'); return; }
 
-    const res  = await fetch('/api/admin/setores', {
+    const res = await fetch('/api/admin/setores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ nome, descricao }),
@@ -218,7 +343,7 @@ async function salvarSetor() {
 
 async function deletarSetor(id, nome) {
     if (!confirm(`Deletar o setor "${nome}"?`)) return;
-    const res  = await fetch(`/api/admin/setores/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/setores/${id}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) { alert(data.erro); return; }
     carregarSetores();
@@ -237,5 +362,6 @@ function mostrarToast(msg) {
 // ── Init ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     await carregarSetoresNoSelect();
+    configurarFiltrosUsuarios();
     carregarUsuarios();
 });

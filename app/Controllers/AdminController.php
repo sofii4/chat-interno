@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 namespace App\Controllers;
-
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Helpers\Response as Json;
@@ -13,15 +12,74 @@ class AdminController
     // GET /api/admin/usuarios
     public function listarUsuarios(Request $request, Response $response): Response
     {
-        $pdo  = getDbConnection();
-        $stmt = $pdo->query("
-            SELECT u.id, u.nome, u.email, u.papel, u.ativo,
-                   u.criado_em, s.nome AS setor
-            FROM usuarios u
-            LEFT JOIN setores s ON s.id = u.setor_id
-            ORDER BY u.nome ASC
-        ");
-        return Json::json($response, $stmt->fetchAll());
+        $params = $request->getQueryParams();
+        $q = trim((string) ($params['q'] ?? ''));
+        $papel = trim((string) ($params['papel'] ?? ''));
+        $setor = trim((string) ($params['setor'] ?? ''));
+        $page = max(1, (int) ($params['page'] ?? 1));
+        $perPage = (int) ($params['per_page'] ?? 7);
+        if ($perPage < 1) $perPage = 7;
+        if ($perPage > 100) $perPage = 100;
+
+        $pdo = getDbConnection();
+        $where = [];
+        $values = [];
+
+        if ($q !== '') {
+            $where[] = '(u.nome LIKE ? OR u.email LIKE ? OR s.nome LIKE ? OR u.papel LIKE ?)';
+            $busca = '%' . $q . '%';
+            $values[] = $busca;
+            $values[] = $busca;
+            $values[] = $busca;
+            $values[] = $busca;
+        }
+
+        if ($papel !== '' && in_array($papel, ['admin', 'ti', 'usuario'], true)) {
+            $where[] = 'u.papel = ?';
+            $values[] = $papel;
+        }
+
+        if ($setor !== '') {
+            $where[] = 'u.setor_id = ?';
+            $values[] = (int) $setor;
+        }
+
+        $whereSql = empty($where) ? '' : ('WHERE ' . implode(' AND ', $where));
+
+        $stmtTotal = $pdo->prepare(
+            "SELECT COUNT(*)
+             FROM usuarios u
+             LEFT JOIN setores s ON s.id = u.setor_id
+             {$whereSql}"
+        );
+        $stmtTotal->execute($values);
+        $total = (int) $stmtTotal->fetchColumn();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        if ($page > $totalPages) {
+            $page = $totalPages;
+        }
+        $offset = ($page - 1) * $perPage;
+
+        $stmt = $pdo->prepare(
+            "SELECT u.id, u.nome, u.email, u.papel, u.ativo,
+                    u.criado_em, s.id AS setor_id, s.nome AS setor
+             FROM usuarios u
+             LEFT JOIN setores s ON s.id = u.setor_id
+             {$whereSql}
+             ORDER BY u.nome ASC
+             LIMIT {$perPage} OFFSET {$offset}"
+        );
+        $stmt->execute($values);
+
+        return Json::json($response, [
+            'data' => $stmt->fetchAll(),
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => $totalPages,
+            ],
+        ]);
     }
 
     // POST /api/admin/usuarios
