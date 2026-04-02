@@ -63,7 +63,7 @@
 
     <section class="mt-6">
         <div class="flex items-center justify-between mb-4">
-            <h2 id="titulo-lista" class="text-sm font-black uppercase tracking-[0.2em] text-gray-500">Chamados Abertos</h2>
+            <h2 id="titulo-lista" class="text-sm font-black uppercase tracking-[0.1em] text-gray-500">Chamados Abertos</h2>
             <span id="contador-lista" class="text-xs font-bold text-indigo-300"></span>
         </div>
         <div id="lista-chamados" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
