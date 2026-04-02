@@ -119,54 +119,73 @@ function conectarWS() {
 
 // ── Inicialização ─────────────────────────────
 document.addEventListener('DOMContentLoaded', async function () {
-    configurarEmojiPicker();
-    conectarWS();
-    await carregarConversas();
-    await abrirConversaViaUrl();
-    carregarUsuarios();
-    configurarBusca();
-    configurarNotificacoes();
-    configurarAnexoChamado();
-    atualizarBadgePainelChamados();
-    setInterval(atualizarBadgePainelChamados, 5000);
-    document.addEventListener('visibilitychange', function () {
-        if (!document.hidden) {
-            atualizarBadgePainelChamados();
-        }
-    });
-    document.getElementById('modal-emergencia').addEventListener('click', function (e) {
-        if (e.target === this) fecharEmergencia();
-    });
-    document.getElementById('modal-nova-conversa').addEventListener('click', function (e) {
-        if (e.target === this) fecharModalNovaConversa();
-    });
-    document.getElementById('modal-editar-grupo').addEventListener('click', function (e) {
-        if (e.target === this) fecharModalEditarGrupo();
-    });
-    const inputWrapper = document.getElementById('msg-input-wrapper');
-    if (inputWrapper) {
-        inputWrapper.addEventListener('click', function (e) {
-            if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input[type="file"]')) {
-                return;
+    try {
+        configurarEmojiPicker();
+        conectarWS();
+        await carregarConversas();
+        await abrirConversaViaUrl();
+        carregarUsuarios();
+        configurarBusca();
+        configurarNotificacoes();
+        configurarAnexoChamado();
+        atualizarBadgePainelChamados();
+        setInterval(atualizarBadgePainelChamados, 5000);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) {
+                atualizarBadgePainelChamados();
             }
-            const input = document.getElementById('msg-input');
-            if (input) input.focus();
         });
+        document.getElementById('modal-emergencia').addEventListener('click', function (e) {
+            if (e.target === this) fecharEmergencia();
+        });
+        document.getElementById('modal-nova-conversa').addEventListener('click', function (e) {
+            if (e.target === this) fecharModalNovaConversa();
+        });
+        document.getElementById('modal-editar-grupo').addEventListener('click', function (e) {
+            if (e.target === this) fecharModalEditarGrupo();
+        });
+        const inputWrapper = document.getElementById('msg-input-wrapper');
+        if (inputWrapper) {
+            inputWrapper.addEventListener('click', function (e) {
+                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input[type="file"]')) {
+                    return;
+                }
+                const input = document.getElementById('msg-input');
+                if (input) input.focus();
+            });
+        }
+
+        // Capturar Enter no file input para evitar rearir seletor de arquivo
+        const fileInput = document.getElementById('msg-file-input');
+        if (fileInput) {
+            fileInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    // Focar no textarea depois de selecionar arquivo
+                    const msgInput = document.getElementById('msg-input');
+                    if (msgInput) {
+                        msgInput.focus();
+                    }
+                }
+            });
+        }
+
+        configurarEmojiFallback();
+        document.addEventListener('click', function (e) {
+            const panel = document.getElementById('emoji-fallback-panel');
+            const btn = document.getElementById('btn-emoji');
+            if (!panel || !emojiFallbackVisivel) return;
+            if (panel.contains(e.target) || (btn && btn.contains(e.target))) return;
+            ocultarEmojiFallback();
+        });
+
+        verificarNovasMensagensNotificacao();
+        sincronizacaoIntervalId = window.setInterval(function () {
+            sincronizacaoLeve();
+        }, 4000);
+    } finally {
+        document.documentElement.classList.remove('chat-loading');
     }
-
-    configurarEmojiFallback();
-    document.addEventListener('click', function (e) {
-        const panel = document.getElementById('emoji-fallback-panel');
-        const btn = document.getElementById('btn-emoji');
-        if (!panel || !emojiFallbackVisivel) return;
-        if (panel.contains(e.target) || (btn && btn.contains(e.target))) return;
-        ocultarEmojiFallback();
-    });
-
-    verificarNovasMensagensNotificacao();
-    sincronizacaoIntervalId = window.setInterval(function () {
-        sincronizacaoLeve();
-    }, 4000);
 });
 
 // ── Conversas (sidebar) ───────────────────────
@@ -243,9 +262,6 @@ async function carregarConversas() {
             conversaAtualTipo = itemSelecionado.dataset.tipo || conversaAtualTipo;
             itemSelecionado.classList.add('bg-gray-800');
         }
-    } else if (lista.length > 0) {
-        const primeiro = nav.querySelector('.conversa-item');
-        selecionarConversa(lista[0].id, lista[0].nome, primeiro);
     }
 }
 
@@ -288,6 +304,58 @@ function limparBadge(conversaId) {
     if (badge) { badge.textContent = ''; badge.classList.add('hidden'); }
 }
 
+function atualizarUrlConversa(conversaId) {
+    const url = new URL(window.location.href);
+    if (conversaId) {
+        url.searchParams.set('conversa', String(conversaId));
+    } else {
+        url.searchParams.delete('conversa');
+    }
+    url.searchParams.delete('conversa_com');
+    window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : ''));
+}
+
+function mostrarEstadoVazioChat() {
+    conversaAtualId = null;
+    conversaAtualNome = null;
+    conversaAtualTipo = null;
+
+    const header = document.getElementById('chat-header');
+    const loadMoreWrap = document.getElementById('chat-load-more-wrap');
+    const composer = document.getElementById('chat-composer');
+    const messages = document.getElementById('messages');
+    const chatNomeEl = document.getElementById('chat-nome');
+    const btnInfo = document.getElementById('btn-info-grupo');
+
+    if (header) header.classList.add('hidden');
+    if (loadMoreWrap) loadMoreWrap.classList.add('hidden');
+    if (composer) composer.classList.add('hidden');
+    if (btnInfo) btnInfo.classList.add('hidden');
+    if (chatNomeEl) chatNomeEl.textContent = 'Chat Interno';
+    atualizarUrlConversa(null);
+
+    if (messages) {
+        messages.className = 'flex-1 overflow-y-auto p-6 flex items-center justify-center';
+        messages.innerHTML = '<div id="chat-empty-state" class="text-center select-none px-6"><p class="text-3xl md:text-4xl font-semibold tracking-tight text-gray-300">Bem-vindo ao Chat Interno!</p></div>';
+    }
+}
+
+function mostrarEstadoConversa() {
+    const header = document.getElementById('chat-header');
+    const loadMoreWrap = document.getElementById('chat-load-more-wrap');
+    const composer = document.getElementById('chat-composer');
+    const messages = document.getElementById('messages');
+
+    if (header) header.classList.remove('hidden');
+    if (loadMoreWrap) loadMoreWrap.classList.remove('hidden');
+    if (composer) composer.classList.remove('hidden');
+    if (messages) {
+        messages.className = 'flex-1 overflow-y-auto p-6 space-y-4';
+        const empty = messages.querySelector('#chat-empty-state');
+        if (empty) empty.remove();
+    }
+}
+
 // ── Usuários (sidebar) ────────────────────────
 async function carregarUsuarios() {
     const res = await fetch('/api/usuarios/online');
@@ -320,9 +388,11 @@ async function carregarUsuarios() {
 
 // ── Selecionar conversa ───────────────────────
 function selecionarConversa(id, nome, el = null) {
+    mostrarEstadoConversa();
     conversaAtualId = id;
     conversaAtualNome = nome;
     conversaAtualTipo = el ? el.dataset.tipo : (document.querySelector('.conversa-item[data-id="' + id + '"]')?.dataset.tipo || null);
+    atualizarUrlConversa(id);
 
     document.querySelectorAll('.conversa-item').forEach(function (b) { b.classList.remove('bg-gray-800'); });
 
@@ -366,6 +436,7 @@ function selecionarConversa(id, nome, el = null) {
 
 // ── Histórico ─────────────────────────────────
 async function carregarMensagens(conversaId) {
+    mostrarEstadoConversa();
     paginaMensagensAtual = 1;
     const box = document.getElementById('messages');
     box.innerHTML = '<p class="text-center text-gray-600 text-xs py-4">Carregando...</p>';
@@ -379,7 +450,21 @@ async function carregarMensagens(conversaId) {
         return;
     }
     msgs.forEach(function (m) { renderizarMensagem(m); });
-    box.scrollTop = box.scrollHeight;
+
+    // Desabilitar scroll suave durante carregamento para evitar animação gigante
+    const scrollBehavior = box.style.scrollBehavior;
+    box.style.scrollBehavior = 'auto';
+
+    // Usar requestAnimationFrame duplo para garantir que o DOM foi pintado
+    requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+            box.scrollTop = box.scrollHeight;
+            // Restaurar scroll suave após scroll finalizar
+            box.style.scrollBehavior = scrollBehavior || '';
+        });
+    });
+
+    configurarScrollParaBotaoCarregar();
 }
 
 async function carregarMaisMensagens() {
@@ -408,12 +493,37 @@ async function carregarMaisMensagens() {
     box.prepend(fragmento);
 
     box.scrollTop = box.scrollHeight - scrollAntes;
+    configurarScrollParaBotaoCarregar();
 }
 
 function atualizarBotaoCarregarMais() {
     const btn = document.getElementById('btn-carregar-mais');
     if (!btn) return;
-    btn.classList.toggle('hidden', !podeCarregarMaisMensagens);
+    // Só mostra o botão se houver mais mensagens E o usuário estiver no topo
+    const box = document.getElementById('messages');
+    const estaNoTopo = box && box.scrollTop <= 10;
+    btn.classList.toggle('hidden', !podeCarregarMaisMensagens || !estaNoTopo);
+}
+
+function configurarScrollParaBotaoCarregar() {
+    const box = document.getElementById('messages');
+    if (!box) return;
+
+    // Remove listener anterior se existir
+    if (box._carregarMaisScrollListener) {
+        box.removeEventListener('scroll', box._carregarMaisScrollListener);
+    }
+
+    // Adiciona novo listener
+    box._carregarMaisScrollListener = function () {
+        const estaNoTopo = box.scrollTop <= 10;
+        const btn = document.getElementById('btn-carregar-mais');
+        if (btn) {
+            btn.classList.toggle('hidden', !podeCarregarMaisMensagens || !estaNoTopo);
+        }
+    };
+
+    box.addEventListener('scroll', box._carregarMaisScrollListener);
 }
 
 // ── Renderizar mensagem ───────────────────────
@@ -421,7 +531,7 @@ function renderizarMensagem(m) {
     const box = document.getElementById('messages');
     const div = criarElementoMensagem(m);
 
-    const vazio = box.querySelector('p.text-center');
+    const vazio = box.querySelector('#chat-empty-state') || box.querySelector('p.text-center');
     if (vazio) vazio.remove();
     box.appendChild(div);
 }
@@ -571,6 +681,8 @@ function enviarMensagem() {
 function atualizarPreviewAnexoMensagem() {
     const fileInput = document.getElementById('msg-file-input');
     const preview = document.getElementById('msg-file-preview');
+    const msgInput = document.getElementById('msg-input');
+
     if (!fileInput || !preview) return;
 
     const arquivos = fileInput.files ? Array.from(fileInput.files) : [];
@@ -588,6 +700,13 @@ function atualizarPreviewAnexoMensagem() {
         preview.textContent = arquivos.length + ' anexos: ' + nomes + restante;
     }
     preview.classList.remove('hidden');
+
+    // Garantir que o foco retorna para o textarea após selecionar arquivos
+    if (msgInput) {
+        setTimeout(function () {
+            msgInput.focus();
+        }, 50);
+    }
 }
 
 async function apagarMensagem(id) {
@@ -631,7 +750,18 @@ function mostrarTyping(nome) {
 }
 
 function handleEnter(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensagem(); }
+    // Se o arquivo está selecionado, não deixar que arquivo seja reenviado
+    const fileInput = document.getElementById('msg-file-input');
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        // Garantir que o foco está no textarea
+        const msgInput = document.getElementById('msg-input');
+        if (msgInput) {
+            msgInput.focus();
+        }
+        enviarMensagem();
+    }
 }
 
 function autoResize(el) {
@@ -948,7 +1078,18 @@ async function iniciarConversaPrivada(usuarioId, usuarioNome) {
 
 async function abrirConversaViaUrl() {
     const urlParams = new URLSearchParams(window.location.search);
+    const conversaId = parseInt(urlParams.get('conversa') || '0', 10);
     const usuarioAlvoId = parseInt(urlParams.get('conversa_com') || '0', 10);
+
+    if (conversaId) {
+        const btn = document.querySelector('.conversa-item[data-id="' + conversaId + '"]');
+        if (btn) {
+            selecionarConversa(conversaId, btn.dataset.nome || 'Conversa', btn);
+        } else {
+            mostrarEstadoVazioChat();
+        }
+        return;
+    }
 
     if (!usuarioAlvoId) return;
 
@@ -974,8 +1115,6 @@ async function abrirConversaViaUrl() {
         } else {
             selecionarConversa(data.id, nomeConversa);
         }
-
-        window.history.replaceState({}, document.title, '/chat');
     } catch (err) {
         console.error('Erro ao abrir conversa via URL:', err);
     }
@@ -1148,9 +1287,7 @@ async function confirmarExcluirGrupo() {
     if (res.ok) {
         fecharModalEditarGrupo();
         if (conversaAtualId == grupoEditandoId) {
-            conversaAtualId = null;
-            document.getElementById('messages').innerHTML = '<p class="text-center text-gray-600 text-xs py-8">Selecione uma conversa</p>';
-            document.getElementById('chat-nome').textContent = 'Selecione uma conversa';
+            mostrarEstadoVazioChat();
         }
         carregarConversas();
     }

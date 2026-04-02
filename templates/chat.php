@@ -7,7 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js"></script>
     <link rel="stylesheet" href="/assets/css/light-mode.css">
+    <script>
+        document.documentElement.classList.add('chat-loading');
+    </script>
     <style>
+        html.chat-loading body { visibility: hidden; }
         #messages { scroll-behavior: smooth; }
         .msg-enter { animation: fadeUp .2s ease; }
         @keyframes fadeUp {
@@ -143,7 +147,7 @@
 <!-- ═══ ÁREA PRINCIPAL ═══ -->
 <main class="flex-1 flex flex-col min-w-0 w-full">
 
-    <header class="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 md:px-6 shrink-0">
+    <header id="chat-header" class="hidden h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 md:px-6 shrink-0">
         <div class="flex items-center gap-3">
             <button class="md:hidden w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center" onclick="toggleSidebarMobile(true)" title="Abrir menu">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,7 +156,7 @@
             </button>
             <div class="w-8 h-8 bg-indigo-700 rounded-lg flex items-center justify-center text-sm">#</div>
             <div>
-                <p id="chat-nome" class="font-semibold text-white text-sm">Selecione uma conversa</p>
+                <p id="chat-nome" class="font-semibold text-white text-sm">Chat Interno</p>
                 <p class="text-xs text-gray-400">Chat Interno</p>
             </div>
         </div>
@@ -168,19 +172,21 @@
         </div>
     </header>
 
-    <div class="px-6 pt-3">
+    <div id="chat-load-more-wrap" class="hidden px-6 pt-3">
         <button id="btn-carregar-mais" onclick="carregarMaisMensagens()" class="hidden w-full bg-gray-900 border border-gray-800 hover:border-indigo-500 text-xs text-gray-300 rounded-xl py-2 transition">
             Carregar mensagens anteriores
         </button>
     </div>
 
-    <div id="messages" class="flex-1 overflow-y-auto p-6 space-y-4">
-        <p class="text-center text-gray-600 text-xs py-8">Selecione uma conversa para começar</p>
+    <div id="messages" class="flex-1 overflow-y-auto p-6 flex items-center justify-center">
+        <div id="chat-empty-state" class="text-center select-none px-6">
+            <p class="text-3xl md:text-4xl font-semibold tracking-tight text-gray-300">Bem-vindo ao Chat Interno!</p>
+        </div>
     </div>
 
     <div id="typing-indicator" class="hidden px-6 py-1 text-xs text-gray-500 italic"></div>
 
-    <div class="p-3 md:p-4 bg-gray-900 border-t border-gray-800 shrink-0">
+    <div id="chat-composer" class="hidden p-3 md:p-4 bg-gray-900 border-t border-gray-800 shrink-0">
         <div id="msg-input-wrapper" class="flex items-center gap-2 md:gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-3 md:px-4 py-2.5 focus-within:ring-2 focus-within:ring-indigo-500 transition cursor-text">
             <button onclick="document.getElementById('msg-file-input').click()" class="text-gray-400 hover:text-indigo-400 transition shrink-0 p-1" title="Anexar arquivos">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
