@@ -1,11 +1,27 @@
 /* Centralized light theme styles for all pages */
 body.theme-light {
-    background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
-    color: #0f172a;
+    --lm-bg-top: #eaf1ff;
+    --lm-bg-bottom: #f8fafc;
+    --lm-surface: #ffffff;
+    --lm-surface-soft: #f1f5f9;
+    --lm-border: #cbd5e1;
+    --lm-text: #0f172a;
+    --lm-text-muted: #334155;
+    --lm-primary: #4f46e5;
+    --lm-primary-hover: #4338ca;
+    --lm-success: #15803d;
+    --lm-success-hover: #166534;
+    --lm-danger: #dc2626;
+    --lm-danger-hover: #b91c1c;
+    --lm-warning: #b45309;
+    --lm-warning-hover: #92400e;
+
+    background: linear-gradient(180deg, var(--lm-bg-top) 0%, var(--lm-bg-bottom) 100%);
+    color: var(--lm-text);
 }
 
 body.theme-light .bg-gray-950 {
-    background-color: #eef2ff !important;
+    background-color: var(--lm-bg-top) !important;
 }
 
 body.theme-light .bg-gray-900,
@@ -13,30 +29,31 @@ body.theme-light .bg-gray-900\/40,
 body.theme-light .bg-gray-900\/70,
 body.theme-light .bg-gray-800,
 body.theme-light .bg-gray-800\/50,
+body.theme-light .bg-black\/20,
 body.theme-light .bg-black\/30 {
-    background-color: #ffffff !important;
+    background-color: var(--lm-surface) !important;
 }
 
 body.theme-light .border-gray-800,
 body.theme-light .border-gray-700,
 body.theme-light .border-gray-800\/50,
 body.theme-light .border-gray-800\/70 {
-    border-color: #cbd5e1 !important;
+    border-color: var(--lm-border) !important;
 }
 
 body.theme-light .text-white {
-    color: #0f172a !important;
+    color: var(--lm-text) !important;
 }
 
 body.theme-light .text-gray-600,
 body.theme-light .text-gray-500,
 body.theme-light .text-gray-400 {
-    color: #334155 !important;
+    color: var(--lm-text-muted) !important;
 }
 
 body.theme-light .text-gray-300,
 body.theme-light .text-gray-200 {
-    color: #1f2937 !important;
+    color: #1e293b !important;
 }
 
 body.theme-light .bg-indigo-600 .text-white,
@@ -49,24 +66,24 @@ body.theme-light .bg-indigo-700 {
 }
 
 body.theme-light .bg-indigo-600 {
-    background-color: #6d28d9 !important;
+    background-color: var(--lm-primary) !important;
 }
 
 body.theme-light .bg-indigo-700 {
-    background-color: #5b21b6 !important;
+    background-color: #3730a3 !important;
 }
 
 body.theme-light .hover\:bg-indigo-500:hover {
-    background-color: #7c3aed !important;
+    background-color: var(--lm-primary-hover) !important;
 }
 
 body.theme-light .text-indigo-400,
 body.theme-light .text-indigo-300 {
-    color: #5b21b6 !important;
+    color: #3730a3 !important;
 }
 
 body.theme-light .focus\:ring-indigo-500:focus {
-    --tw-ring-color: rgba(109, 40, 217, 0.35) !important;
+    --tw-ring-color: rgba(79, 70, 229, 0.35) !important;
 }
 
 body.theme-light .placeholder-gray-500::placeholder {
@@ -84,20 +101,25 @@ body.theme-light .hover\:bg-gray-800\/50:hover {
 body.theme-light select {
     color: #111827 !important;
     background-color: #f8fafc !important;
-    border-color: #cbd5e1 !important;
+    border-color: var(--lm-border) !important;
 }
 
 body.theme-light select option {
     color: #111827 !important;
-    background-color: #ffffff !important;
+    background-color: var(--lm-surface) !important;
+}
+
+body.theme-light input,
+body.theme-light textarea {
+    color: #111827;
 }
 
 body.theme-light button.bg-gray-800,
 body.theme-light a.bg-gray-800,
 body.theme-light .bg-gray-800.border {
     background-color: #e2e8f0 !important;
-    color: #1f2937 !important;
-    border-color: #cbd5e1 !important;
+    color: #1e293b !important;
+    border-color: var(--lm-border) !important;
     box-shadow: 0 1px 1px rgba(15, 23, 42, 0.04);
 }
 
@@ -111,17 +133,150 @@ body.theme-light button.bg-indigo-600,
 body.theme-light a.bg-indigo-600,
 body.theme-light button.bg-indigo-700,
 body.theme-light a.bg-indigo-700 {
-    background-image: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%) !important;
+    background-image: linear-gradient(135deg, var(--lm-primary) 0%, #4338ca 100%) !important;
     color: #ffffff !important;
     border-color: transparent !important;
-    box-shadow: 0 10px 20px rgba(109, 40, 217, 0.18);
+    box-shadow: 0 10px 20px rgba(79, 70, 229, 0.18);
 }
 
 body.theme-light button.bg-indigo-600:hover,
 body.theme-light a.bg-indigo-600:hover,
 body.theme-light button.bg-indigo-700:hover,
 body.theme-light a.bg-indigo-700:hover {
-    background-image: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%) !important;
+    background-image: linear-gradient(135deg, #4338ca 0%, #3730a3 100%) !important;
+}
+
+/* High-contrast action colors in light mode */
+body.theme-light .bg-green-600,
+body.theme-light .bg-green-600 .text-white,
+body.theme-light .bg-green-500,
+body.theme-light .bg-green-500 .text-white,
+body.theme-light .bg-red-600,
+body.theme-light .bg-red-600 .text-white,
+body.theme-light .bg-red-500,
+body.theme-light .bg-red-500 .text-white,
+body.theme-light .bg-amber-600,
+body.theme-light .bg-amber-600 .text-white,
+body.theme-light .bg-amber-500,
+body.theme-light .bg-amber-500 .text-white {
+    color: #ffffff !important;
+}
+
+body.theme-light .bg-green-600 {
+    background-color: var(--lm-success) !important;
+}
+
+body.theme-light .hover\:bg-green-500:hover,
+body.theme-light .hover\:bg-green-600:hover {
+    background-color: var(--lm-success-hover) !important;
+}
+
+body.theme-light .bg-red-600 {
+    background-color: var(--lm-danger) !important;
+}
+
+body.theme-light .hover\:bg-red-500:hover,
+body.theme-light .hover\:bg-red-600:hover {
+    background-color: var(--lm-danger-hover) !important;
+}
+
+body.theme-light .hover\:bg-amber-600:hover {
+    background-color: var(--lm-warning) !important;
+}
+
+body.theme-light .hover\:bg-amber-500:hover {
+    background-color: var(--lm-warning-hover) !important;
+}
+
+body.theme-light .text-green-500,
+body.theme-light .text-green-400 {
+    color: #166534 !important;
+}
+
+body.theme-light .text-red-400,
+body.theme-light .text-red-500 {
+    color: #b91c1c !important;
+}
+
+body.theme-light .text-amber-300,
+body.theme-light .text-amber-400 {
+    color: #92400e !important;
+}
+
+body.theme-light .bg-yellow-500 {
+    background-color: #facc15 !important;
+    color: #111827 !important;
+}
+
+body.theme-light .bg-red-600\/10 {
+    background-color: rgba(220, 38, 38, 0.12) !important;
+}
+
+body.theme-light .hover\:bg-red-600\/20:hover {
+    background-color: rgba(220, 38, 38, 0.2) !important;
+}
+
+body.theme-light .border-red-500\/30 {
+    border-color: rgba(220, 38, 38, 0.35) !important;
+}
+
+body.theme-light .bg-green-500\/10 {
+    background-color: rgba(22, 101, 52, 0.12) !important;
+}
+
+body.theme-light .border-green-500\/20 {
+    border-color: rgba(22, 101, 52, 0.24) !important;
+}
+
+/* Hero/header panels that were still too dark in light mode */
+body.page-meus-chamados.theme-light .bg-gradient-to-br.from-gray-900.via-gray-900.to-indigo-950,
+body.page-relatorio-chamados.theme-light .bg-gradient-to-br.from-gray-900.via-gray-900.to-indigo-950 {
+    background-image: linear-gradient(135deg, #e8efff 0%, #eef4ff 45%, #f3f7ff 100%) !important;
+    border-color: #c7d2fe !important;
+}
+
+body.page-meus-chamados.theme-light .bg-gradient-to-br.from-gray-900.via-gray-900.to-indigo-950 .absolute.inset-0.opacity-30,
+body.page-relatorio-chamados.theme-light .bg-gradient-to-br.from-gray-900.via-gray-900.to-indigo-950 .absolute.inset-0.opacity-40 {
+    background:
+        radial-gradient(circle at top right, rgba(79, 70, 229, 0.16), transparent 42%),
+        radial-gradient(circle at left bottom, rgba(16, 185, 129, 0.1), transparent 36%) !important;
+    opacity: 1 !important;
+}
+
+body.page-meus-chamados.theme-light .bg-black\/20,
+body.page-relatorio-chamados.theme-light .bg-black\/30 {
+    background-color: rgba(255, 255, 255, 0.86) !important;
+}
+
+/* Dashboard action buttons in light mode */
+body.page-dashboard-ti.theme-light #detalhes-btn-comentarios,
+body.page-dashboard-ti.theme-light #detalhes-btn-chamar,
+body.page-dashboard-ti.theme-light #container-documentados button[onclick*="abrirModalComentarios"],
+body.page-dashboard-ti.theme-light #container-documentados button[onclick*="chamarSetor"] {
+    background-color: var(--lm-primary) !important;
+    border: 1px solid #4338ca !important;
+    color: #ffffff !important;
+}
+
+body.page-dashboard-ti.theme-light #detalhes-btn-comentarios:hover,
+body.page-dashboard-ti.theme-light #detalhes-btn-chamar:hover,
+body.page-dashboard-ti.theme-light #container-documentados button[onclick*="abrirModalComentarios"]:hover,
+body.page-dashboard-ti.theme-light #container-documentados button[onclick*="chamarSetor"]:hover {
+    background-color: #3730a3 !important;
+    color: #ffffff !important;
+}
+
+body.page-dashboard-ti.theme-light #detalhes-btn-finalizar,
+body.page-dashboard-ti.theme-light #container-documentados button[onclick*="finalizarChamado"] {
+    background-color: var(--lm-success) !important;
+    border: 1px solid #166534 !important;
+    color: #ffffff !important;
+}
+
+body.page-dashboard-ti.theme-light #detalhes-btn-finalizar:hover,
+body.page-dashboard-ti.theme-light #container-documentados button[onclick*="finalizarChamado"]:hover {
+    background-color: #166534 !important;
+    color: #ffffff !important;
 }
 
 /* Dashboard TI specific */
@@ -129,6 +284,105 @@ body.page-dashboard-ti.theme-light #modal-classificar button.bg-gray-800,
 body.page-dashboard-ti.theme-light #modal-detalhes button.bg-gray-800 {
     color: #0f172a !important;
     font-weight: 700;
+}
+
+body.page-dashboard-ti.theme-light #modal-taxonomias .bg-gray-900,
+body.page-dashboard-ti.theme-light #modal-taxonomias .bg-gray-800,
+body.page-dashboard-ti.theme-light #modal-taxonomias .bg-gray-800\/70,
+body.page-dashboard-ti.theme-light #modal-taxonomias .bg-gray-700 {
+    background-color: #ffffff !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-taxonomias {
+    color: #0f172a !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-taxonomias h3,
+body.page-dashboard-ti.theme-light #modal-taxonomias label,
+body.page-dashboard-ti.theme-light #modal-taxonomias .text-white,
+body.page-dashboard-ti.theme-light #modal-taxonomias .text-gray-200 {
+    color: #0f172a !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-taxonomias input,
+body.page-dashboard-ti.theme-light #modal-taxonomias .bg-gray-800,
+body.page-dashboard-ti.theme-light #modal-taxonomias .bg-gray-800\/70,
+body.page-dashboard-ti.theme-light #modal-taxonomias .bg-gray-700 {
+    background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-taxonomias #lista-taxonomias > div {
+    background-color: #eef2ff !important;
+    border-color: #c7d2fe !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-taxonomias #lista-taxonomias > div span {
+    color: #0f172a !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-taxonomias #lista-taxonomias > div button {
+    color: #dc2626 !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-taxonomias #lista-taxonomias > div button:hover {
+    color: #b91c1c !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-taxonomias button.bg-indigo-600,
+body.page-dashboard-ti.theme-light #modal-taxonomias button.bg-indigo-700 {
+    color: #ffffff !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-detalhes button.absolute.top-4.right-12,
+body.page-dashboard-ti.theme-light #modal-comentarios button.text-gray-500.hover\:text-white,
+body.page-dashboard-ti.theme-light #modal-finalizar button.text-gray-500.hover\:text-white,
+body.page-dashboard-ti.theme-light #modal-taxonomias button.text-gray-500.hover\:text-white {
+    background-color: #f8fafc !important;
+    color: #475569 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+body.page-dashboard-ti.theme-light #modal-detalhes button.absolute.top-4.right-12:hover,
+body.page-dashboard-ti.theme-light #modal-comentarios button.text-gray-500.hover\:text-white:hover,
+body.page-dashboard-ti.theme-light #modal-finalizar button.text-gray-500.hover\:text-white:hover,
+body.page-dashboard-ti.theme-light #modal-taxonomias button.text-gray-500.hover\:text-white:hover {
+    background-color: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-detalhes #detalhes-btn-comentarios,
+body.page-dashboard-ti.theme-light #modal-detalhes #detalhes-btn-chamar {
+    background-color: var(--lm-primary) !important;
+    border: 1px solid #4338ca !important;
+    color: #ffffff !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-detalhes #detalhes-btn-editar {
+    background-color: #d97706 !important;
+    border: 1px solid #b45309 !important;
+    color: #ffffff !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-detalhes #detalhes-btn-finalizar {
+    background-color: var(--lm-success) !important;
+    border: 1px solid #166534 !important;
+    color: #ffffff !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-detalhes #detalhes-btn-comentarios:hover,
+body.page-dashboard-ti.theme-light #modal-detalhes #detalhes-btn-chamar:hover {
+    background-color: #3730a3 !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-detalhes #detalhes-btn-editar:hover {
+    background-color: #b45309 !important;
+}
+
+body.page-dashboard-ti.theme-light #modal-detalhes #detalhes-btn-finalizar:hover {
+    background-color: #166534 !important;
 }
 
 body.page-dashboard-ti.theme-light #filtro-setor,
@@ -184,6 +438,10 @@ body.page-admin.theme-light .btn-cancelar-modal:hover {
 /* Chat specific */
 body.page-chat.theme-light .bg-gray-800 {
     background-color: #e9eef7 !important;
+}
+
+body.page-chat.theme-light #messages .bg-gray-800 {
+    background-color: #d7e0ec !important;
 }
 
 body.page-chat.theme-light .hover\:bg-gray-800:hover {

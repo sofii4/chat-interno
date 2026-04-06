@@ -230,7 +230,7 @@
 
     <div id="modal-detalhes" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-4xl shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
-            <button onclick="fecharModal('modal-detalhes')" class="absolute top-4 right-4 text-gray-500 hover:text-white">
+            <button onclick="fecharModal('modal-detalhes')" class="absolute top-4 right-12 z-20 rounded-full bg-gray-950/70 backdrop-blur p-1 text-gray-500 hover:text-white">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
