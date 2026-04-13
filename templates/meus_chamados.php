@@ -6,19 +6,14 @@
     <title>Meus Chamados</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/assets/css/light-mode.css">
-    <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #111827; }
-        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 999px; }
-        .card-anim { transition: transform .2s ease, border-color .2s ease, background-color .2s ease; }
-        .card-anim:hover { transform: translateY(-2px); }
-    </style>
+    <script src="/assets/js/utils.js"></script>
+    <script src="/assets/js/config.js"></script>
 </head>
 <body class="page-meus-chamados bg-gray-950 text-white min-h-screen">
 <?php $chamadosUsuario = $chamadosUsuario ?? []; ?>
 <div class="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
     <div class="relative overflow-hidden rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-900 via-gray-900 to-indigo-950 shadow-2xl">
-        <div class="absolute inset-0 opacity-30" style="background: radial-gradient(circle at top right, rgba(99,102,241,.35), transparent 40%), radial-gradient(circle at left bottom, rgba(34,197,94,.18), transparent 35%);"></div>
+        <div class="absolute inset-0 opacity-30 hero-gradient-meus"></div>
         <div class="relative p-6 md:p-8 flex flex-col gap-6">
             <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
                 <div>

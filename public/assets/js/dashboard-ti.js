@@ -1,12 +1,4 @@
-const CONFIG = {
-    categorias: {},
-    prioridades: {
-        "critica": { label: "CRÍTICA", color: "bg-red-500", border: "border-red-500" },
-        "alta": { label: "ALTA", color: "bg-orange-500", border: "border-orange-500" },
-        "media": { label: "MÉDIA", color: "bg-yellow-500", border: "border-yellow-500" },
-        "baixa": { label: "BAIXA", color: "bg-blue-500", border: "border-blue-500" }
-    }
-};
+const CONFIG = window.APP_CONFIG || { categorias: {}, prioridades: {}, status: {} };
 
 let chamadosCache = [];
 let historicoMinimizado = false;
@@ -358,12 +350,6 @@ function formatarDataCurta(valorData) {
     return data.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 }
 
-function formatarDataHora(valorData) {
-    const data = parseDataServidorBrasilia(valorData);
-    if (!data) return 'Nao informado';
-    return data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-}
-
 function togglePainelHistorico() {
     historicoMinimizado = !historicoMinimizado;
 
@@ -593,15 +579,6 @@ async function finalizarChamado(id, titulo) {
     inputTitulo.innerText = `#${id} - ${titulo}`;
 
     document.getElementById('modal-finalizar').classList.remove('hidden');
-}
-
-function escapeHtml(valor) {
-    return String(valor || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
 }
 
 function formatarBytes(bytes) {

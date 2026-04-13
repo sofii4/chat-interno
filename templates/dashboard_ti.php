@@ -6,13 +6,8 @@
     <title>Dashboard TI - Gestão de Chamados</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/assets/css/light-mode.css">
-    <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #111827; }
-        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
-        .card-anim { transition: all 0.2s ease; }
-        .card-anim:hover { transform: translateY(-2px); }
-    </style>
+    <script src="/assets/js/utils.js"></script>
+    <script src="/assets/js/config.js"></script>
 </head>
 <body class="page-dashboard-ti bg-gray-950 text-white h-screen flex flex-col overflow-hidden">
 <?php $chamadosBootstrap = $chamadosBootstrap ?? []; ?>

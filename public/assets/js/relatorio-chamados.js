@@ -183,25 +183,6 @@ function formatarDia(valor) {
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-function formatarDuracaoMinutos(minutos) {
-    const total = Number(minutos || 0);
-    if (!total || total < 1) return '0h';
-    const horas = total / 60;
-    if (horas < 1) {
-        return Math.round(total) + 'min';
-    }
-    return horas.toFixed(horas >= 10 ? 0 : 1) + 'h';
-}
-
-function escapeHtml(valor) {
-    return String(valor || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
 function exportarCsv() {
     window.location.href = '/api/chamados/relatorio/csv';
 }

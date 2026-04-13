@@ -84,14 +84,15 @@ async function carregarUsuarios() {
                             class="text-xs text-indigo-400 hover:text-indigo-300 transition px-2 py-1 rounded-lg hover:bg-indigo-500/10">
                         Editar
                     </button>
-                    ${u.ativo ? `
-                    <button onclick="reativarUsuario(${u.id}, '${u.nome}')" style="display:none"></button>` : `
-                    <button onclick="reativarUsuario(${u.id}, '${u.nome}')"  class="text-xs text-green-400 hover:text-green-300 transition px-2 py-1 rounded-lg hover:bg-green-500/10">Reativar</button>`}
-                    ${u.ativo ? `
-                    <button onclick="desativarUsuario(${u.id}, '${u.nome}')"
+                    ${u.ativo
+            ? `<button onclick="desativarUsuario(${u.id}, '${u.nome}')"
                             class="text-xs text-red-400 hover:text-red-300 transition px-2 py-1 rounded-lg hover:bg-red-500/10">
                         Desativar
-                    </button>` : ''}
+                    </button>`
+            : `<button onclick="reativarUsuario(${u.id}, '${u.nome}')"
+                            class="text-xs text-green-400 hover:text-green-300 transition px-2 py-1 rounded-lg hover:bg-green-500/10">
+                        Reativar
+                    </button>`}
                 </div>
             </td>
         </tr>`).join('');

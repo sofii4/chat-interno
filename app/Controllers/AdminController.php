@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace App\Controllers;
+
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Helpers\Response as Json;
@@ -18,8 +19,12 @@ class AdminController
         $setor = trim((string) ($params['setor'] ?? ''));
         $page = max(1, (int) ($params['page'] ?? 1));
         $perPage = (int) ($params['per_page'] ?? 7);
-        if ($perPage < 1) $perPage = 7;
-        if ($perPage > 100) $perPage = 100;
+        if ($perPage < 1) {
+            $perPage = 7;
+        }
+        if ($perPage > 100) {
+            $perPage = 100;
+        }
 
         $pdo = getDbConnection();
         $where = [];
@@ -90,7 +95,7 @@ class AdminController
         $email = trim($data['email'] ?? '');
         $senha = $data['senha'] ?? '';
         $papel = $data['papel'] ?? 'usuario';
-        $setorId = $data['setor_id'] ? (int) $data['setor_id'] : null;
+        $setorId = !empty($data['setor_id']) ? (int) $data['setor_id'] : null;
 
         if (!$nome || !$email || !$senha) {
             return Json::erro($response, 'Nome, e-mail e senha são obrigatórios');

@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js"></script>
     <link rel="stylesheet" href="/assets/css/light-mode.css">
+    <script src="/assets/js/utils.js"></script>
+    <script src="/assets/js/config.js"></script>
     <script>
         document.documentElement.classList.add('chat-loading');
     </script>
@@ -18,9 +20,6 @@
             from { opacity: 0; transform: translateY(8px); }
             to   { opacity: 1; transform: translateY(0); }
         }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 999px; }
 
         @media (max-width: 767px) {
             #chat-sidebar {

@@ -7,12 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/assets/css/light-mode.css">
-    <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #111827; }
-        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 999px; }
-        .card-glow { box-shadow: 0 18px 35px rgba(15, 23, 42, .35); }
-    </style>
+    <script src="/assets/js/utils.js"></script>
+    <script src="/assets/js/config.js"></script>
 </head>
 <body class="page-relatorio-chamados bg-gray-950 text-white min-h-screen">
     <header class="sticky top-0 z-30 bg-gray-900/70 backdrop-blur border-b border-gray-800">
@@ -40,7 +36,7 @@
 
     <main class="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6">
         <section class="relative overflow-hidden rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-900 via-gray-900 to-indigo-950 p-6 md:p-8 card-glow">
-            <div class="absolute inset-0 opacity-40" style="background: radial-gradient(circle at top right, rgba(99,102,241,.45), transparent 40%), radial-gradient(circle at left bottom, rgba(16,185,129,.22), transparent 35%);"></div>
+            <div class="absolute inset-0 opacity-40 hero-gradient-relatorio"></div>
             <div class="relative">
                 <h2 class="text-lg md:text-2xl font-black">Visão Geral</h2>
                 <p class="text-sm text-gray-300 mt-2 max-w-3xl">Métricas consolidadas de chamados abertos e encerrados, desempenho por categoria/subcategoria, solicitantes e resolutores com tempo médio de solução.</p>

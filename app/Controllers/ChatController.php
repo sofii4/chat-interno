@@ -211,21 +211,21 @@ class ChatController
         $userId = $request->getAttribute('user_id');
         $pdo    = getDbConnection();
 
-            $temPresenca = $this->tableExists($pdo, 'user_presenca');
-            $joinPresenca = $temPresenca ? 'LEFT JOIN user_presenca up ON up.usuario_id = u.id' : '';
-            $selectPresenca = $temPresenca
-                ? 'COALESCE(up.online, 0) AS online, up.last_seen AS last_seen,'
-                : '0 AS online, NULL AS last_seen,';
+        $temPresenca = $this->tableExists($pdo, 'user_presenca');
+        $joinPresenca = $temPresenca ? 'LEFT JOIN user_presenca up ON up.usuario_id = u.id' : '';
+        $selectPresenca = $temPresenca
+            ? 'COALESCE(up.online, 0) AS online, up.last_seen AS last_seen,'
+            : '0 AS online, NULL AS last_seen,';
 
-            $stmt = $pdo->prepare("
-                SELECT u.id, u.nome, u.papel, s.nome AS setor, {$selectPresenca}
-                       u.ativo
-                FROM usuarios u
-                LEFT JOIN setores s ON s.id = u.setor_id
-                {$joinPresenca}
-                WHERE u.ativo = 1 AND u.id != ?
-                    ORDER BY online DESC, u.nome ASC
-            ");
+        $stmt = $pdo->prepare(" 
+            SELECT u.id, u.nome, u.papel, s.nome AS setor, {$selectPresenca}
+                   u.ativo
+            FROM usuarios u
+            LEFT JOIN setores s ON s.id = u.setor_id
+            {$joinPresenca}
+            WHERE u.ativo = 1 AND u.id != ?
+            ORDER BY online DESC, u.nome ASC
+        ");
         $stmt->execute([$userId]);
 
         return Json::json($response, $stmt->fetchAll());
@@ -234,7 +234,7 @@ class ChatController
     // POST /api/conversas
     public function criarConversa(Request $request, Response $response): Response
     {
-        $userId = $request->getAttribute('user_id');
+        $userId = (int) $request->getAttribute('user_id');
         $papel  = $request->getAttribute('user_papel');
         $data   = (array) $request->getParsedBody();
         $tipo   = $data['tipo'] ?? 'privada';
@@ -569,9 +569,28 @@ class ChatController
         if ($arquivosBrutos === null) {
             return [];
         }
-        if (is_array($arquivosBrutos)) {
-            return $arquivosBrutos;
+
+        if (!is_array($arquivosBrutos)) {
+            return [$arquivosBrutos];
         }
-        return [$arquivosBrutos];
+
+        $saida = [];
+        $pilha = $arquivosBrutos;
+
+        while (!empty($pilha)) {
+            $item = array_pop($pilha);
+            if (is_array($item)) {
+                foreach ($item as $subItem) {
+                    $pilha[] = $subItem;
+                }
+                continue;
+            }
+
+            if (is_object($item) && method_exists($item, 'getClientFilename') && method_exists($item, 'getError')) {
+                $saida[] = $item;
+            }
+        }
+
+        return $saida;
     }
 }

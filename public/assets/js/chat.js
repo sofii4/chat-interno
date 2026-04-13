@@ -2,23 +2,7 @@ const CHAT_BOOTSTRAP = window.CHAT_BOOTSTRAP || {};
 const CURRENT_USER_ID = Number(CHAT_BOOTSTRAP.currentUserId || 0);
 const CURRENT_USER_NAME = String(CHAT_BOOTSTRAP.currentUserName || '');
 const IS_ADMIN = Boolean(CHAT_BOOTSTRAP.isAdmin);
-const CONFIG_CHAMADOS = {
-    categorias: {
-        "ERP": ["Financeiro", "Fiscal", "Contabilidade", "Vendas"],
-        "Engenharia": ["AutoCAD", "Solidworks", "Revisão de Projeto"],
-        "Infraestrutura": ["Servidor", "Backup", "Cloud", "Banco de Dados"],
-        "Redes": ["Wi-Fi", "Cabeamento", "VPN"],
-        "Segurança": ["Antivírus", "Firewall", "Câmeras"],
-        "Hardware": ["Desktop/Notebook", "Impressora", "Periféricos"],
-        "Acessos": ["Reset de Senha", "Novo Usuário", "Permissões"]
-    },
-    prioridades: {
-        "critica": { label: "Crítica", color: "bg-red-500", border: "border-red-500" },
-        "alta": { label: "Alta", color: "bg-orange-500", border: "border-orange-500" },
-        "media": { label: "Média", color: "bg-yellow-500", border: "border-yellow-500" },
-        "baixa": { label: "Baixa", color: "bg-blue-500", border: "border-blue-500" }
-    }
-};
+const CONFIG_CHAMADOS = window.APP_CONFIG || { categorias: {}, prioridades: {}, status: {} };
 let conversaAtualId = null;
 let conversaAtualNome = null;
 let ws = null;
@@ -575,15 +559,8 @@ function criarElementoMensagem(m) {
     return div;
 }
 
-function escaparHtml(valor) {
-    return String(valor)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
-
 function formatarConteudoMensagem(texto) {
-    const escapado = escaparHtml(texto || '');
+    const escapado = escapeHtml(texto || '');
     return escapado
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')

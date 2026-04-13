@@ -3,7 +3,7 @@ let chamadosUsuarioCache = MEUS_CHAMADOS_BOOTSTRAP.slice();
 let tabAtual = 'abertos';
 let chamadoAtualId = 0;
 
-const STATUS_LABELS = {
+const STATUS_LABELS = (window.APP_CONFIG && window.APP_CONFIG.status) || {
     aberto: 'Aberto',
     classificado: 'Classificado',
     em_andamento: 'Em andamento',
@@ -11,12 +11,7 @@ const STATUS_LABELS = {
     cancelado: 'Cancelado'
 };
 
-const PRIORIDADE_LABELS = {
-    critica: { label: 'Crítica', color: 'bg-red-500' },
-    alta: { label: 'Alta', color: 'bg-orange-500' },
-    media: { label: 'Média', color: 'bg-yellow-500' },
-    baixa: { label: 'Baixa', color: 'bg-blue-500' }
-};
+const PRIORIDADE_LABELS = (window.APP_CONFIG && window.APP_CONFIG.prioridades) || {};
 
 document.addEventListener('DOMContentLoaded', function () {
     renderizarDashboard();
@@ -311,27 +306,4 @@ function renderizarAnexos(anexos) {
 function fecharModal(id) {
     const modal = document.getElementById(id);
     if (modal) modal.classList.add('hidden');
-}
-
-function formatarDataHora(valorData) {
-    if (!valorData) return 'Não informado';
-    const base = typeof valorData === 'string' && !valorData.includes('T')
-        ? valorData.replace(' ', 'T') + '-03:00'
-        : valorData;
-    const data = new Date(base);
-    if (isNaN(data.getTime())) return 'Não informado';
-    return data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-}
-
-function normalizarTexto(valor) {
-    return String(valor || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-}
-
-function escapeHtml(valor) {
-    return String(valor || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
 }

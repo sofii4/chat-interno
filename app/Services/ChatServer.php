@@ -477,49 +477,4 @@ class ChatServer implements MessageComponentInterface
         }
     }
 
-    private function obterUltimaMensagemVisivelId(int $userId): int
-    {
-        if ($userId <= 0) {
-            return 0;
-        }
-
-        try {
-            $pdo = getDbConnection();
-            $stmt = $pdo->prepare(
-                'SELECT COALESCE(MAX(m.id), 0)
-                 FROM mensagens m
-                 INNER JOIN participantes p ON p.conversa_id = m.conversa_id
-                 WHERE p.usuario_id = ?
-                   AND m.criado_em >= p.entrou_em'
-            );
-            $stmt->execute([$userId]);
-            return (int) $stmt->fetchColumn();
-        } catch (\Throwable $e) {
-            error_log('Falha ao obter ultima mensagem visivel: ' . $e->getMessage());
-            return 0;
-        }
-    }
-
-    private function obterUltimaConversaVisivelId(int $userId): int
-    {
-        if ($userId <= 0) {
-            return 0;
-        }
-
-        try {
-            $pdo = getDbConnection();
-            $stmt = $pdo->prepare(
-                'SELECT COALESCE(MAX(c.id), 0)
-                 FROM conversas c
-                 INNER JOIN participantes p ON p.conversa_id = c.id
-                 WHERE p.usuario_id = ?'
-            );
-            $stmt->execute([$userId]);
-            return (int) $stmt->fetchColumn();
-        } catch (\Throwable $e) {
-            error_log('Falha ao obter ultima conversa visivel: ' . $e->getMessage());
-            return 0;
-        }
-    }
-
 }
