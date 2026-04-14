@@ -3,12 +3,15 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../config/database.php';
+require __DIR__ . '/../config/bootstrap.php';
 
 date_default_timezone_set('America/Sao_Paulo');
 
 // Carrega o .env
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
+
+bootstrapDefaultData();
 
 use Ratchet\Server\IoServer;
 use Ratchet\Http\HttpServer;

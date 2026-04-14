@@ -1,0 +1,149 @@
+version: '3.8'
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  chat_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  mysql_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+# ============================================
+# SERVICES
+# ============================================
+services:
+  # ------------------------------------------
+  # MySQL Database
+  # ------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: chat_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      TZ: America/Sao_Paulo
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/my.conf:/etc/mysql/conf.d/custom.cnf:ro
+      - ./config/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      chat_network:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "${DB_HOST_PORT:-3307}:3306"  # Host 3307 -> container 3306 (evita conflito com MySQL nativo)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASS}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ------------------------------------------
+  # PHP-FPM Application
+  # ------------------------------------------
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: production
+    container_name: chat_php
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # Passar variáveis do .env
+      APP_ENV: ${APP_ENV}
+      APP_SECRET: ${APP_SECRET}
+      DB_HOST: mysql  # Nome do serviço (DNS interno)
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      UPLOAD_MAX_SIZE: ${UPLOAD_MAX_SIZE}
+      UPLOAD_ALLOWED: ${UPLOAD_ALLOWED}
+      TZ: America/Sao_Paulo
+    volumes:
+      # Volume compartilhado com nginx
+      - ./:/var/www/html:delegated
+      - uploads_data:/var/www/html/public/uploads
+      # Logs externos para análise
+      - ./var/logs:/var/www/html/var/logs
+    networks:
+      chat_network:
+        ipv4_address: 172.20.0.20
+    # Não expor porta 9000 externamente (apenas interno)
+
+  # ------------------------------------------
+  # Nginx Web Server
+  # ------------------------------------------
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    container_name: chat_nginx
+    restart: unless-stopped
+    depends_on:
+      - php
+    volumes:
+      # Compartilhar código para servir assets estáticos
+      - ./public:/var/www/html/public:ro
+      - uploads_data:/var/www/html/public/uploads:ro
+    networks:
+      chat_network:
+        ipv4_address: 172.20.0.30
+    ports:
+      - "${WEB_HOST_PORT:-8188}:80"  # HTTP público no host da VM
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ------------------------------------------
+  # WebSocket Server (Ratchet + Supervisor)
+  # ------------------------------------------
+  websocket:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile.websocket
+    container_name: chat_websocket
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      TZ: America/Sao_Paulo
+    volumes:
+      - ./:/var/www/html:delegated
+      - ./var/logs:/var/www/html/var/logs
+    networks:
+      chat_network:
+        ipv4_address: 172.20.0.40
+    ports:
+      - "8080:8080"  # WebSocket público
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8080"]
+      interval: 30s
+      timeout: 3s
+      retries: 3

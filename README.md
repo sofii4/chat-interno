@@ -10,7 +10,8 @@ Sistema interno de comunicação empresarial com chat em tempo real e gestão co
 - [Modelo de Dados](#modelo-de-dados)
 - [APIs REST](#apis-rest)
 - [Tempo Real (WebSocket)](#tempo-real-websocket)
-- [Como Rodar](#como-rodar)
+- [Como Utilizar](#como-utilizar)
+- [Execução Direta na VM](#execução-direta-na-vm)
 - [Arquitetura e Operação](#arquitetura-e-operação)
 
 ## Visão Geral
@@ -32,7 +33,7 @@ O projeto reúne duas frentes principais:
 | Dependências | Composer | Gerenciamento de pacotes |
 | Configuração | phpdotenv | Variáveis de ambiente |
 | Frontend | HTML + Tailwind CSS + JS Vanilla | Interface e interação |
-| Web server | Apache 2.4 + mod_rewrite | Entrega HTTP |
+| Web server | Nginx + PHP-FPM | Entrega HTTP no fluxo containerizado |
 
 ## Funcionalidades
 
@@ -193,55 +194,53 @@ Eventos principais:
 | cliente -> servidor | typing | Usuário digitando |
 | servidor -> cliente | typing | Broadcast de digitação |
 
-## Como Rodar
+## Como Utilizar
 
-### Pré-requisitos
+### Fluxo Containerizado
+
+1. Copie o arquivo de ambiente de exemplo e ajuste os segredos.
 
 ```bash
-sudo apt install php8.3 php8.3-mysql php8.3-zip php8.3-sockets apache2 libapache2-mod-php8.3 mysql-server unzip -y
+cp .env.docker.example .env
+nano .env
 ```
 
-### Instalação
+2. Suba a stack Docker.
 
 ```bash
-git clone https://github.com/sofii4/chat-interno.git
-cd chat-interno
-
-composer install
-
-cp .env.example .env
-# ajuste as variáveis no arquivo .env
-
-mysql -u root -p -e "CREATE DATABASE chat_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -u root -p chat_db < config/schema.sql
-
-sudo a2enmod rewrite
-sudo systemctl restart apache2
+docker compose up -d
+docker compose ps
 ```
 
-### Permissões de upload
+3. Acesse a aplicação pela porta publicada no host da VM.
 
-```bash
-sudo chown -R www-data:www-data public/uploads
-sudo chmod -R 775 public/uploads
+```text
+http://localhost:8188/login
 ```
 
-### Subir WebSocket
+4. Verifique o WebSocket.
+
+```text
+ws://localhost:8080
+```
+
+5. Para reiniciar somente os serviços principais.
 
 ```bash
-php bin/chat-server.php
+docker compose restart php nginx websocket
 ```
 
 ### Rotas de acesso
 
 | URL | Descrição |
 |---|---|
-| http://localhost/login | Login |
-| http://localhost/chat | Chat |
-| http://localhost/dashboard-ti | Dashboard TI |
-| http://localhost/dashboard-ti/relatorio | Relatório de Chamados |
-| http://localhost/meus-chamados | Dashboard do Usuário |
-| http://localhost/admin | Admin |
+| http://localhost:8188/login | Login |
+| http://localhost:8188/chat | Chat |
+| http://localhost:8188/dashboard-ti | Dashboard TI |
+| http://localhost:8188/dashboard-ti/relatorio | Relatório de Chamados |
+| http://localhost:8188/meus-chamados | Dashboard do Usuário |
+| http://localhost:8188/admin | Admin |
+
 
 ## Arquitetura e Operação
 

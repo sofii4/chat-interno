@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+.env.*
+chat_db_backup.sql
+uploads_backup.tar.gz
+logs/
+*.log
+public/uploads/
+vendor/
+node_modules/

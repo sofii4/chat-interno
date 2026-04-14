@@ -1,0 +1,38 @@
+FROM php:8.3-cli-alpine
+
+LABEL description="Ratchet WebSocket Server com auto-restart"
+
+# Instalar extensões necessárias + Supervisor
+RUN apk add --no-cache \
+    supervisor \
+    mysql-client \
+    netcat-openbsd \
+    linux-headers \
+    $PHPIZE_DEPS \
+    && docker-php-ext-install -j$(nproc) \
+        pdo_mysql \
+        sockets \
+        pcntl \
+    && apk del $PHPIZE_DEPS \
+    && rm -rf /var/cache/apk/*
+
+WORKDIR /var/www/html
+
+# Copiar código (será montado via volume em dev, copiado em prod)
+COPY --chown=www-data:www-data . .
+
+# Copiar configuração do Supervisor
+COPY docker/php/supervisor.conf /etc/supervisor/conf.d/websocket.conf
+
+# Criar diretórios de logs
+RUN mkdir -p /var/log/supervisor \
+    && chown -R www-data:www-data /var/log/supervisor
+
+EXPOSE 8080
+
+# Health check via TCP socket
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+    CMD nc -z localhost 8080 || exit 1
+
+# Supervisor mantém o processo vivo
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/websocket.conf"]

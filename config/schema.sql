@@ -5,7 +5,8 @@ CREATE TABLE setores (
     id        INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     nome      VARCHAR(100) NOT NULL,
     descricao TEXT,
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_setores_nome (nome)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE usuarios (
@@ -100,13 +101,6 @@ CREATE TABLE IF NOT EXISTS chamado_comentario_anexos (
     INDEX idx_chamado_comentario_anexos_comentario (comentario_id),
     FOREIGN KEY (comentario_id) REFERENCES chamado_comentarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Setor e usuário admin inicial para teste
-INSERT INTO setores (nome) VALUES ('TI'), ('Administrativo'), ('Operacional');
-INSERT INTO usuarios (nome, email, senha_hash, setor_id, papel)
-VALUES ('Administrador', 'admin@empresa.com',
-        '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1, 'admin');
--- senha do admin acima é: password
 
 SET FOREIGN_KEY_CHECKS = 1;
 
