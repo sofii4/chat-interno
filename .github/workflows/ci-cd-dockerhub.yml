@@ -67,7 +67,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/chat-interno-${{ matrix.image.name }}
           tags: |
-            type=raw,value=small-changes
+            type=raw,value=main
             type=sha,prefix=sha-
 
       - name: Build e push

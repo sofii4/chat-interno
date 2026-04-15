@@ -1,6 +1,7 @@
 {
     "name": "empresa/projeto-chat",
     "description": "Sistema de Chat Interno e Chamados",
+    "license": "proprietary",
     "type": "project",
     "require": {
         "php": ">=8.1",
