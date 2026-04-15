@@ -1,0 +1,80 @@
+name: CI/CD Images
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: docker.io
+
+jobs:
+  test:
+    name: Teste de codigo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Validar composer.json
+        run: composer validate --strict
+
+      - name: Instalar dependencias
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Lint PHP (sintaxe)
+        run: |
+          set -e
+          git ls-files '*.php' | while read -r file; do
+            php -l "$file"
+          done
+
+  docker:
+    name: Build e push imagens
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: php
+            dockerfile: docker/php/Dockerfile
+          - name: nginx
+            dockerfile: docker/nginx/Dockerfile
+          - name: websocket
+            dockerfile: docker/php/Dockerfile.websocket
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Metadata de tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/chat-interno-${{ matrix.image.name }}
+          tags: |
+            type=raw,value=small-changes
+            type=sha,prefix=sha-
+
+      - name: Build e push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
