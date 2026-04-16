@@ -9,6 +9,14 @@ CREATE TABLE setores (
     UNIQUE KEY uniq_setores_nome (nome)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+INSERT IGNORE INTO setores (nome, descricao) VALUES
+('TI', 'Setor de tecnologia da informacao'),
+('Administrativo', 'Setor administrativo'),
+('Engenharia', 'Setor de engenharia'),
+('Financeiro', 'Setor financeiro'),
+('Operacional', 'Setor operacional'),
+('Vendas', 'Setor comercial e vendas');
+
 CREATE TABLE usuarios (
     id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     nome         VARCHAR(150) NOT NULL,
